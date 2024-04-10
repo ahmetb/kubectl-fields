@@ -81,7 +81,7 @@ kind: Foo
 metadata:
   managedFields:
   - operation: Apply`))
-		require.NoError(t, err)
+		require.Error(t, err)
 	})
 	t.Run("valid obj", func(t *testing.T) {
 		got, err := getManagedFields([]byte(exampleObj))

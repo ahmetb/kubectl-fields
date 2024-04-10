@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -11,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hako/durafmt"
 	"github.com/spf13/pflag"
 	"gopkg.in/yaml.v3"
 	"k8s.io/klog/v2"
@@ -49,12 +49,6 @@ func main() {
 	managedFieldEntries, err := getManagedFields(in)
 	if err != nil {
 		klog.Fatalf("error getting managed fields: %v", err)
-	}
-
-	if len(managedFieldEntries) == 0 {
-		klog.Fatal(`no metadata.managedFields found on the original object.` +
-			` use "kubectl get --show-managed-fields -o=yaml"` +
-			` to get the resource, and pipe its output to this program`)
 	}
 	klog.V(1).Infof("found %d managed field entries", len(managedFieldEntries))
 
@@ -235,40 +229,9 @@ func annotateYAMLNode(node *yaml.Node, entry *managedField) {
 }
 
 func timeFmt(t time.Time) string {
-	s := time.Since(t).Round(time.Minute).String()
-	return strings.Replace(s, "m0s", "m", 1) + " ago" // 13m0s --> 13m
-}
-
-func validateDocumentIsSingleKubernetesObject(doc *yaml.Node) error {
-	if doc.Kind != yaml.DocumentNode {
-		return errors.New("only single object yaml documents are supported as input")
-	}
-
-	if len(doc.Content) != 1 {
-		return fmt.Errorf("expected a single object in the input, got %d", len(doc.Content))
-	}
-
-	rootDoc := doc.Content[0]
-	// Ensure the document node contains a mapping node as its content.
-	if rootDoc.Kind != yaml.MappingNode {
-		return fmt.Errorf("invalid document structure (kind=%v)", yamlNodeKind[rootDoc.Kind])
-	}
-
-	// make sure the doc is not a metav1.List
-	if kind, ok := getValue(rootDoc, "kind"); ok && kind == "List" {
-		return errors.New("input is a meta/v1.List object, only single objects are supported")
-	}
-
-	// Ensure input has `metadata.managedField`
-	metadata, ok := getValueNode(rootDoc, "metadata")
-	if !ok {
-		return errors.New(".metadata not found in the object (is it a valid Kubernetes object?)")
-	}
-	_, ok = getValueNode(metadata, "managedFields")
-	if !ok {
-		return errors.New(".metadata.managedFields not found in the object, use `kubectl get --show-managed-fields -o=yaml` to get the resource")
-	}
-	return nil
+	s, _ := durafmt.ParseStringShort(time.Since(t).Truncate(time.Second).String())
+	units, _ := durafmt.DefaultUnitsCoder.Decode("yr:yr,wk:wk,d:d,h:h,m:m,s:s,ms:ms,µs:µs")
+	return strings.ReplaceAll(s.LimitFirstN(2).Format(units), " ", "") + " ago"
 }
 
 // mappingNodeAsMap converts a given yaml object (kind=MappingNode) into
@@ -287,32 +250,6 @@ func mappingNodeAsMap(node *yaml.Node) (map[string]any, error) {
 		return nil, fmt.Errorf("error decoding node: %w", err)
 	}
 	return out, nil
-}
-
-// stripManagedFields removes the `metadata.managedFields` field from the given
-// yaml document.
-func stripManagedFields(rootDoc *yaml.Node) {
-	var metadataNode *yaml.Node
-
-	for i, c := range rootDoc.Content {
-		if c.Value == "metadata" {
-			metadataNode = rootDoc.Content[i+1]
-			break
-		}
-	}
-	if metadataNode == nil {
-		klog.Warning("metadata not found in the object")
-		return
-	}
-
-	for i, c := range metadataNode.Content {
-		if c.Value == "managedFields" {
-			// remove the key and the value adjacent to it
-			metadataNode.Content = append(metadataNode.Content[:i], metadataNode.Content[i+2:]...)
-			klog.V(3).Info("stripped managedFields from metadata")
-			return
-		}
-	}
 }
 
 // getValueNode returns the value node of a mapping entry in given node or returns
