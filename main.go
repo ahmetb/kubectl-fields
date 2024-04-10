@@ -7,21 +7,13 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/spf13/pflag"
 	"gopkg.in/yaml.v3"
-	"k8s.io/apimachinery/pkg/api/meta"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/serializer/json"
-	kyaml "k8s.io/apimachinery/pkg/runtime/serializer/yaml"
-	"k8s.io/apimachinery/pkg/util/managedfields"
 	"k8s.io/klog/v2"
-	"k8s.io/utils/ptr"
-	"sigs.k8s.io/structured-merge-diff/v4/fieldpath"
 )
 
 var (
@@ -43,10 +35,16 @@ func main() {
 		klog.Fatalf("error reading input: %v", err)
 	}
 
-	rootNode, err := yamlRootNode(in)
-	if err != nil {
-		klog.Fatalf("error parsing input: %v", err)
+	// Parse the input as a YAML document
+	var doc yaml.Node
+	if err := yaml.NewDecoder(bytes.NewReader(in)).Decode(&doc); err != nil {
+		klog.Fatalf("error reading input as YAML document: %v", err)
 	}
+	if err := validateDocumentIsSingleKubernetesObject(&doc); err != nil {
+		klog.Fatalf("error validating object: %v", err)
+	}
+	rootNode := doc.Content[0] // this is our Kubernetes object as YAML
+	klog.V(1).Info("parsed input as a single Kubernetes object")
 
 	managedFieldEntries, err := getManagedFields(in)
 	if err != nil {
@@ -58,57 +56,47 @@ func main() {
 			` use "kubectl get --show-managed-fields -o=yaml"` +
 			` to get the resource, and pipe its output to this program`)
 	}
+	klog.V(1).Infof("found %d managed field entries", len(managedFieldEntries))
 
 	// TODO make this a nicely typed map that works with fieldpath.Path.
-	var allManagedFields []managedFieldEntry
+	var allManagedFields []managedField
 
 	for _, managedFieldsEntry := range managedFieldEntries {
-		fieldsJSON := bytes.NewReader(managedFieldsEntry.FieldsV1.Raw)
-		fset := fieldpath.NewSet()
-		if err := fset.FromJSON(fieldsJSON); err != nil {
-			klog.Fatalf("error unmarshaling managed fields: %v", err)
+		fields, err := extractManagedFieldSet(managedFieldsEntry)
+		if err != nil {
+			klog.Fatalf("error extracting managed fields: %v", err)
 		}
-		extractManagedFields(fset).Iterate(func(p fieldpath.Path) {
-			klog.V(1).InfoS("managed field", "manager", managedFieldsEntry.Manager, "path", p.String())
-			allManagedFields = append(allManagedFields, managedFieldEntry{
-				path:        clone(p), // for whatever reason the p is reused
-				manager:     managedFieldsEntry.Manager,
-				subresource: managedFieldsEntry.Subresource,
-				time:        ptr.Deref(managedFieldsEntry.Time, metav1.Time{}),
-			})
-		})
-		// Delete the metadata.managedFields from the original object
+		klog.V(1).Infof("found %d managed fields for manager %s", len(fields), managedFieldsEntry.Manager)
+		allManagedFields = append(allManagedFields, fields...)
 	}
+	klog.V(1).Infof("total %d managed fields from %d managers", len(allManagedFields), len(managedFieldEntries))
 
 	// Delete the metadata.managedFields from the original object
 	stripManagedFields(rootNode)
 
 	// Annotate each managed field on the YAML document
 	for i := range allManagedFields {
-		klog.V(3).InfoS("call annotating field", "path", allManagedFields[i].path)
+		klog.V(3).InfoS("call annotating field", "path", allManagedFields[i].Path)
 		if err := annotateManagedField(rootNode, &allManagedFields[i]); err != nil {
-			klog.Fatalf("error annotating field %s: %v", allManagedFields[i].path, err)
+			klog.Fatalf("error annotating field %s: %v", allManagedFields[i].Path, err)
 		}
 	}
 
-	output, err := yaml.Marshal(&rootNode)
-	if err != nil {
+	if err := yaml.NewEncoder(os.Stdout).Encode(rootNode); err != nil {
 		klog.Fatalf("error marshaling the resulting object back to yaml: %v", err)
 	}
-	fmt.Print(string(output))
-
 	for _, v := range allManagedFields {
-		if !v.used {
-			klog.Warningf("managed field=%s is not annotated on the resulting yaml", v.path)
+		if !v.Used {
+			klog.Warningf("managed field %s is not annotated on the resulting output (probably a bug, please report it)", v.Path)
 		}
 	}
+	klog.V(1).Info("done")
 }
 
-// annotateManagedField annotates the given yaml node in the document with the given
-// managed field entry at path.
-func annotateManagedField(node *yaml.Node, entry *managedFieldEntry) error {
-	fullPath := entry.path
-	path := clone(entry.path)
+// annotateManagedField annotates the given managed field entry in node.
+func annotateManagedField(node *yaml.Node, entry *managedField) error {
+	fullPath := entry.Path
+	path := slices.Clone(entry.Path)
 
 	klog.V(1).InfoS("start annotating", "path", fullPath.String())
 	for len(path) > 0 {
@@ -146,7 +134,7 @@ func annotateManagedField(node *yaml.Node, entry *managedFieldEntry) error {
 			}
 		case cur.Index != nil: // i:0 entry in a sequence node
 			if node.Kind != yaml.SequenceNode {
-				return fmt.Errorf("expected a sequence node %s (full path: %s), got %v", entry.path, fullPath, yamlNodeKind[node.Kind])
+				return fmt.Errorf("expected a sequence node %s (full path: %s), got %v", entry.Path, fullPath, yamlNodeKind[node.Kind])
 			}
 			if *cur.Index >= len(node.Content) {
 				return fmt.Errorf("index %d out of range in sequence node %s (full path: %s)", *cur.Index, path, fullPath)
@@ -156,7 +144,7 @@ func annotateManagedField(node *yaml.Node, entry *managedFieldEntry) error {
 
 		case cur.Value != nil: // v:value entry in a sequence node
 			if node.Kind != yaml.SequenceNode {
-				return fmt.Errorf("expected a sequence node %s (full path: %s), got %v", entry.path, fullPath, yamlNodeKind[node.Kind])
+				return fmt.Errorf("expected a sequence node %s (full path: %s), got %v", entry.Path, fullPath, yamlNodeKind[node.Kind])
 			}
 			val := *cur.Value
 			if !val.IsString() {
@@ -182,14 +170,14 @@ func annotateManagedField(node *yaml.Node, entry *managedFieldEntry) error {
 			//
 			// we're trying to find the objects in a list that match all given requirements
 			if node.Kind != yaml.SequenceNode {
-				return fmt.Errorf("expected a sequence node at %s (full path: %s), got %v", entry.path, fullPath, yamlNodeKind[node.Kind])
+				return fmt.Errorf("expected a sequence node at %s (full path: %s), got %v", entry.Path, fullPath, yamlNodeKind[node.Kind])
 			}
 
 			listElems := make([]map[string]any, len(node.Content))
 			for i, child := range node.Content {
 				m, err := mappingNodeAsMap(child)
 				if err != nil {
-					return fmt.Errorf("error converting child node at %s[%d] to map: %w", entry.path, i, err)
+					return fmt.Errorf("error converting child node at %s[%d] to map: %w", entry.Path, i, err)
 				}
 				listElems[i] = m
 			}
@@ -227,15 +215,15 @@ func annotateManagedField(node *yaml.Node, entry *managedFieldEntry) error {
 	return nil
 }
 
-func annotateYAMLNode(node *yaml.Node, entry *managedFieldEntry) {
-	entry.used = true
+func annotateYAMLNode(node *yaml.Node, entry *managedField) {
+	entry.Used = true
 
-	comment := fmt.Sprintf("%s", entry.manager)
-	if entry.subresource != "" {
-		comment += fmt.Sprintf(" (/%s)", entry.subresource)
+	comment := fmt.Sprintf("%s", entry.Manager.Name)
+	if entry.Manager.Subresource != "" {
+		comment += fmt.Sprintf(" (/%s)", entry.Manager.Subresource)
 	}
-	if !entry.time.IsZero() {
-		comment += fmt.Sprintf(" (%s)", timeFmt(entry.time.Time))
+	if !entry.Manager.Time.IsZero() {
+		comment += fmt.Sprintf(" (%s)", timeFmt(entry.Manager.Time))
 	}
 
 	if *flPosition == "above" {
@@ -251,101 +239,36 @@ func timeFmt(t time.Time) string {
 	return strings.Replace(s, "m0s", "m", 1) + " ago" // 13m0s --> 13m
 }
 
-type managedFieldEntry struct {
-	path        fieldpath.Path
-	manager     string
-	subresource string
-	time        metav1.Time
-
-	used bool
-}
-
-func yamlRootNode(in []byte) (*yaml.Node, error) {
-	decoder := yaml.NewDecoder(bytes.NewReader(in))
-	var doc yaml.Node
-	if err := decoder.Decode(&doc); err != nil {
-		return nil, fmt.Errorf("error reading input as YAML document: %v", err)
-	}
-	if err := validateDocumentIsKubernetesObject(&doc); err != nil {
-		return nil, fmt.Errorf("error validating document: %v", err)
-	}
-	return doc.Content[0], nil
-}
-
-func validateDocumentIsKubernetesObject(doc *yaml.Node) error {
+func validateDocumentIsSingleKubernetesObject(doc *yaml.Node) error {
 	if doc.Kind != yaml.DocumentNode {
 		return errors.New("only single object yaml documents are supported as input")
 	}
 
-	// Ensure the document node contains a mapping node as its content.
-	if len(doc.Content) != 1 || doc.Content[0].Kind != yaml.MappingNode {
-		return fmt.Errorf("invalid document structure (yaml.Kind=%v, content_len=%d)", doc.Content[0].Kind, len(doc.Content))
+	if len(doc.Content) != 1 {
+		return fmt.Errorf("expected a single object in the input, got %d", len(doc.Content))
 	}
-
-	// TODO validate `metadata.managedField` exists
 
 	rootDoc := doc.Content[0]
-	_ = rootDoc
+	// Ensure the document node contains a mapping node as its content.
+	if rootDoc.Kind != yaml.MappingNode {
+		return fmt.Errorf("invalid document structure (kind=%v)", yamlNodeKind[rootDoc.Kind])
+	}
+
+	// make sure the doc is not a metav1.List
+	if kind, ok := getValue(rootDoc, "kind"); ok && kind == "List" {
+		return errors.New("input is a meta/v1.List object, only single objects are supported")
+	}
+
+	// Ensure input has `metadata.managedField`
+	metadata, ok := getValueNode(rootDoc, "metadata")
+	if !ok {
+		return errors.New(".metadata not found in the object (is it a valid Kubernetes object?)")
+	}
+	_, ok = getValueNode(metadata, "managedFields")
+	if !ok {
+		return errors.New(".metadata.managedFields not found in the object, use `kubectl get --show-managed-fields -o=yaml` to get the resource")
+	}
 	return nil
-}
-
-// getManagedFields parses given object and returns its validated
-// ManagedFieldEntries.
-func getManagedFields(in []byte) ([]metav1.ManagedFieldsEntry, error) {
-	emptyScheme := runtime.NewScheme()
-	var u unstructured.Unstructured
-	serializer := kyaml.NewDecodingSerializer(json.NewSerializerWithOptions(
-		json.DefaultMetaFactory, emptyScheme, emptyScheme, json.SerializerOptions{}))
-
-	obj, gvk, err := serializer.Decode(in, nil, &u)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode input as a Kubernetes resource: %w", err)
-	}
-	klog.V(1).InfoS("decoded object", "gvk", gvk)
-
-	objMeta, err := meta.Accessor(obj)
-	if err != nil {
-		return nil, fmt.Errorf("error getting object metadata: %w", err)
-	}
-	mf := objMeta.GetManagedFields()
-	if err := managedfields.ValidateManagedFields(mf); err != nil {
-		return nil, fmt.Errorf("error validating managed fields on the object: %w", err)
-	}
-	return mf, nil
-}
-
-// extractManagedFields extracts the set of managed fields from the given
-// fieldpath set. These elements are basically those appear in metadata.managedFields
-// with a value of `{}`.
-func extractManagedFields(fs *fieldpath.Set) *fieldpath.Set {
-	var out []fieldpath.Path
-	f := func(p fieldpath.Path) {
-		out = append(out, p)
-	}
-	extractRecurse(fs, nil, f)
-	return fieldpath.NewSet(out...)
-}
-
-func extractRecurse(fs *fieldpath.Set, prefix fieldpath.Path, f func(fieldpath.Path)) {
-	// members are the set of managed fields on the entry that appear like `"f:foo": {}`
-	fs.Members.Iterate(func(pe fieldpath.PathElement) {
-		path := append(clone(prefix), pe)
-		f(path)
-	})
-
-	// children are the sub-paths where more members are stored
-	fs.Children.Iterate(func(pe fieldpath.PathElement) {
-		path := append(clone(prefix), pe)
-		ss, ok := fs.Children.Get(pe)
-		if !ok {
-			return
-		}
-		extractRecurse(ss, path, f)
-	})
-}
-
-func clone[T any](v []T) []T {
-	return append([]T(nil), v...)
 }
 
 // mappingNodeAsMap converts a given yaml object (kind=MappingNode) into
@@ -390,6 +313,27 @@ func stripManagedFields(rootDoc *yaml.Node) {
 			return
 		}
 	}
+}
+
+// getValueNode returns the value node of a mapping entry in given node or returns
+// false if the key is not found.
+func getValueNode(mappingNode *yaml.Node, key string) (*yaml.Node, bool) {
+	for i, content := range mappingNode.Content {
+		if content.Value == key {
+			return mappingNode.Content[i+1], true
+		}
+	}
+	return nil, false
+}
+
+// getValue returns the string value of a mapping entry in given node or returns
+// false if the value is not a scalar node or the key is not found.
+func getValue(mappingNode *yaml.Node, key string) (string, bool) {
+	valNode, ok := getValueNode(mappingNode, key)
+	if !ok || valNode.Kind != yaml.ScalarNode {
+		return "", false
+	}
+	return valNode.Value, true
 }
 
 var yamlNodeKind = map[yaml.Kind]string{
