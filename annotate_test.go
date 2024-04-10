@@ -10,11 +10,14 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
+	testingclock "k8s.io/utils/clock/testing"
 	"sigs.k8s.io/structured-merge-diff/v4/fieldpath"
 	"sigs.k8s.io/structured-merge-diff/v4/value"
 )
 
 func TestTimeFmt(t *testing.T) {
+	now := time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)
+	c := testingclock.NewFakePassiveClock(now)
 	cases := []struct {
 		offset   time.Duration
 		expected string
@@ -26,17 +29,20 @@ func TestTimeFmt(t *testing.T) {
 		{time.Hour*25 + time.Minute*31, "1d1h ago"},
 		{time.Hour*24*365*2 + time.Hour*73, "2yr3d ago"},
 	}
-	for _, v := range cases {
-		t.Run(fmt.Sprintf("offset %s", v.offset), func(t *testing.T) {
-			assert.Equal(t, v.expected, timeFmt(time.Now().Add(-v.offset)))
+	for _, tc := range cases {
+		t.Run(fmt.Sprintf("offset %s", tc.offset), func(t *testing.T) {
+			assert.Equal(t, tc.expected, timeFmt(c, now.Add(-tc.offset)))
 		})
 	}
 }
 
 func TestAnnotation(t *testing.T) {
-	assert.Equal(t, "test", annotation(managerEntry{Name: "test"}))
-	assert.Equal(t, "test (/scale)", annotation(managerEntry{Name: "test", Subresource: "scale"}))
-	assert.Equal(t, "test (/scale) (1h ago)", annotation(managerEntry{Name: "test", Subresource: "scale", Time: time.Now().Add(-time.Hour)}))
+	now := time.Now()
+	c := testingclock.NewFakePassiveClock(now)
+
+	assert.Equal(t, "test", annotation(managerEntry{Name: "test"}, c))
+	assert.Equal(t, "test (/scale)", annotation(managerEntry{Name: "test", Subresource: "scale"}, c))
+	assert.Equal(t, "test (/scale) (1h ago)", annotation(managerEntry{Name: "test", Subresource: "scale", Time: now.Add(-time.Hour)}, c))
 }
 
 func TestAnnotateYAMLNode(t *testing.T) {

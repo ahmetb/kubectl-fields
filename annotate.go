@@ -10,6 +10,7 @@ import (
 	"github.com/hako/durafmt"
 	"gopkg.in/yaml.v3"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/clock"
 	"sigs.k8s.io/structured-merge-diff/v4/value"
 )
 
@@ -21,6 +22,7 @@ const (
 )
 
 type annotationOptions struct {
+	clock    clock.PassiveClock
 	position annotationPosition
 }
 
@@ -175,7 +177,7 @@ func findAssociativeListNode(node *yaml.Node, key value.FieldList) (*yaml.Node, 
 func annotateYAMLNode(node *yaml.Node, entry *managedField, opts annotationOptions) {
 	entry.Used = true
 
-	comment := annotation(entry.Manager)
+	comment := annotation(entry.Manager, opts.clock)
 
 	if opts.position == Above {
 		node.HeadComment = comment
@@ -185,19 +187,19 @@ func annotateYAMLNode(node *yaml.Node, entry *managedField, opts annotationOptio
 	klog.V(3).Info("annotated node")
 }
 
-func annotation(mgr managerEntry) string {
+func annotation(mgr managerEntry, c clock.PassiveClock) string {
 	comment := fmt.Sprintf("%s", mgr.Name)
 	if mgr.Subresource != "" {
 		comment += fmt.Sprintf(" (/%s)", mgr.Subresource)
 	}
 	if !mgr.Time.IsZero() {
-		comment += fmt.Sprintf(" (%s)", timeFmt(mgr.Time))
+		comment += fmt.Sprintf(" (%s)", timeFmt(c, mgr.Time))
 	}
 	return comment
 }
 
-func timeFmt(t time.Time) string {
-	since := time.Since(t)
+func timeFmt(c clock.PassiveClock, t time.Time) string {
+	since := c.Now().Sub(t)
 	d, _ := durafmt.ParseStringShort(since.Truncate(time.Second).String())
 	units, _ := durafmt.DefaultUnitsCoder.Decode("yr:yr,wk:wk,d:d,h:h,m:m,s:s,ms:ms,µs:µs")
 	return strings.ReplaceAll(d.LimitFirstN(2).Format(units), " ", "") + " ago"

@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations: # kubectl-client-side-apply (50m ago)
+    deployment.kubernetes.io/revision: "2" # kube-controller-manager (/status) (1h ago)
+    kubectl.kubernetes.io/last-applied-configuration: | # kubectl-client-side-apply (50m ago)
+      {"apiVersion":"apps/v1","kind":"Deployment","metadata":{"annotations":{},"labels":{"app":"nginx"},"name":"nginx-deployment","namespace":"default"},"spec":{"replicas":3,"selector":{"matchLabels":{"app":"nginx"}},"template":{"metadata":{"labels":{"app":"nginx"}},"spec":{"containers":[{"image":"nginx:1.14.2","name":"nginx","ports":[{"containerPort":80}]}]}}}}
+  creationTimestamp: "2024-04-10T00:34:50Z"
+  finalizers: # finalizerpatcher (59m21s ago)
+    - example.com/foo # finalizerpatcher (59m21s ago)
+  generation: 2
+  labels: # kubectl-client-side-apply (50m ago)
+    app: nginx # kubectl-client-side-apply (50m ago)
+  name: nginx-deployment
+  namespace: default
+  resourceVersion: "7792385"
+  uid: 2e77f9dd-e8da-47b0-be11-75b04f1b4460
+spec:
+  progressDeadlineSeconds: 600 # kubectl-client-side-apply (50m ago)
+  replicas: 3 # kubectl-client-side-apply (50m ago)
+  revisionHistoryLimit: 10 # kubectl-client-side-apply (50m ago)
+  selector: # kubectl-client-side-apply (50m ago)
+    matchLabels:
+      app: nginx
+  strategy:
+    rollingUpdate: # kubectl-client-side-apply (50m ago)
+      maxSurge: 25% # kubectl-client-side-apply (50m ago)
+      maxUnavailable: 25% # kubectl-client-side-apply (50m ago)
+    type: RollingUpdate # kubectl-client-side-apply (50m ago)
+  template:
+    metadata:
+      creationTimestamp: null
+      labels: # kubectl-client-side-apply (50m ago)
+        app: nginx # kubectl-client-side-apply (50m ago)
+    spec:
+      containers:
+        - env: # envpatcher (1h ago)
+            - name: barx # envpatcher (1h ago)
+              value: bar # envpatcher (1h ago)
+          image: nginx:1.14.2 # kubectl-client-side-apply (50m ago)
+          imagePullPolicy: IfNotPresent # kubectl-client-side-apply (50m ago)
+          name: nginx # kubectl-client-side-apply (50m ago)
+          ports: # kubectl-client-side-apply (50m ago)
+            - containerPort: 80 # kubectl-client-side-apply (50m ago)
+              protocol: TCP # kubectl-client-side-apply (50m ago)
+          resources: {}
+          terminationMessagePath: /dev/termination-log # kubectl-client-side-apply (50m ago)
+          terminationMessagePolicy: File # kubectl-client-side-apply (50m ago)
+      dnsPolicy: ClusterFirst # kubectl-client-side-apply (50m ago)
+      restartPolicy: Always # kubectl-client-side-apply (50m ago)
+      schedulerName: default-scheduler # kubectl-client-side-apply (50m ago)
+      securityContext: {}
+      terminationGracePeriodSeconds: 30 # kubectl-client-side-apply (50m ago)
+status:
+  availableReplicas: 3 # kube-controller-manager (/status) (1h ago)
+  conditions: # kube-controller-manager (/status) (1h ago)
+    - lastTransitionTime: "2024-04-10T00:34:50Z" # kube-controller-manager (/status) (1h ago)
+      lastUpdateTime: "2024-04-10T00:34:50Z" # kube-controller-manager (/status) (1h ago)
+      message: Deployment has minimum availability. # kube-controller-manager (/status) (1h ago)
+      reason: MinimumReplicasAvailable # kube-controller-manager (/status) (1h ago)
+      status: "True" # kube-controller-manager (/status) (1h ago)
+      type: Available # kube-controller-manager (/status) (1h ago)
+    - # kube-controller-manager (/status) (1h ago)
+      lastTransitionTime: "2024-04-10T00:34:49Z" # kube-controller-manager (/status) (1h ago)
+      lastUpdateTime: "2024-04-10T00:35:14Z" # kube-controller-manager (/status) (1h ago)
+      message: ReplicaSet "nginx-deployment-779d59bcb" has successfully progressed. # kube-controller-manager (/status) (1h ago)
+      reason: NewReplicaSetAvailable # kube-controller-manager (/status) (1h ago)
+      status: "True" # kube-controller-manager (/status) (1h ago)
+      type: Progressing # kube-controller-manager (/status) (1h ago)
+  observedGeneration: 2 # kube-controller-manager (/status) (1h ago)
+  readyReplicas: 3 # kube-controller-manager (/status) (1h ago)
+  replicas: 3 # kube-controller-manager (/status) (1h ago)
+  updatedReplicas: 3 # kube-controller-manager (/status) (1h ago)

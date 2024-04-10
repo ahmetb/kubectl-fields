@@ -30,6 +30,7 @@ import (
 	"github.com/spf13/pflag"
 	"gopkg.in/yaml.v3"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/clock"
 )
 
 var (
@@ -56,7 +57,9 @@ func main() {
 		klog.Fatalf("error reading input: %v", err)
 	}
 
-	if err := run(in, os.Stdout, annotationOptions{position: pos}); err != nil {
+	if err := run(in, os.Stdout, annotationOptions{
+		clock:    clock.RealClock{},
+		position: pos}); err != nil {
 		klog.Fatal(err)
 	}
 
@@ -107,7 +110,9 @@ func run(in []byte, w io.Writer, opts annotationOptions) error {
 		}
 	}
 
-	if err := yaml.NewEncoder(os.Stdout).Encode(rootNode); err != nil {
+	enc := yaml.NewEncoder(w)
+	enc.SetIndent(2)
+	if err := enc.Encode(rootNode); err != nil {
 		return fmt.Errorf("error marshaling the resulting object back to yaml: %v", err)
 	}
 	for _, v := range allManagedFields {
