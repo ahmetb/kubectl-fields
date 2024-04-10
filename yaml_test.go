@@ -141,9 +141,17 @@ func TestMappingNodeAsMap(t *testing.T) {
 	})
 }
 
+// yamlDoc parses b into a yaml document node.
 func yamlDoc(t *testing.T, b []byte) *yaml.Node {
 	t.Helper()
 	var doc yaml.Node
 	require.NoError(t, yaml.Unmarshal([]byte(b), &doc))
 	return &doc
+}
+
+// rootNode extracts first node from a document node.
+func rootNode(t *testing.T, n *yaml.Node) *yaml.Node {
+	t.Helper()
+	require.Equal(t, yaml.DocumentNode, n.Kind)
+	return n.Content[0]
 }

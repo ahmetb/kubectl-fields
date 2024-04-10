@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"reflect"
 	"slices"
 	"strings"
 	"time"
@@ -110,16 +111,20 @@ func findValueAtIndex(node *yaml.Node, index int) (*yaml.Node, error) {
 	return node.Content[index], nil
 }
 
-// findValueNode takes a sequence node and tries to find the element that matches the given value.
+// findValueNode takes a sequence node of scalar values and tries to find the element that matches the given value.
 func findValueNode(node *yaml.Node, val value.Value) (*yaml.Node, error) {
+	if !val.IsString() {
+		return nil, fmt.Errorf("managed field v:%v is not a string (not yet supported)", val)
+	}
+
 	if node.Kind != yaml.SequenceNode {
 		return nil, fmt.Errorf("expected a sequence node, got %v", yamlNodeKind[node.Kind])
 	}
 
-	if !val.IsString() {
-		return nil, fmt.Errorf("managed field v:%v is not a string (not yet supported)", val)
-	}
 	for _, ch := range node.Content {
+		if ch.Kind != yaml.ScalarNode {
+			return nil, fmt.Errorf("expected a scalar node in the sequence node, but the elements are of type %v", yamlNodeKind[ch.Kind])
+		}
 		if ch.Value == val.AsString() {
 			return ch, nil
 		}
@@ -158,7 +163,7 @@ func findAssociativeListNode(node *yaml.Node, key value.FieldList) (*yaml.Node, 
 			needVal := requirement.Value.Unstructured()
 
 			v, ok := child[needKey]
-			meetsRequirements = meetsRequirements || (ok && v == needVal)
+			meetsRequirements = meetsRequirements || (ok && reflect.DeepEqual(v, needVal))
 		}
 		if meetsRequirements {
 			return node.Content[i], nil
