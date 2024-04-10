@@ -29,7 +29,7 @@ func TestE2E(t *testing.T) {
 			inFile:  "1_deployment.yaml",
 			errFunc: require.NoError,
 			opts: annotationOptions{
-				clock: testingclock.NewFakePassiveClock(time.Date(2024, 4, 10, 1, 34, 50, 0, time.UTC)),
+				Clock: testingclock.NewFakePassiveClock(time.Date(2024, 4, 10, 1, 34, 50, 0, time.UTC)),
 			},
 			outFile: "1_deployment_inline.out",
 		},
@@ -38,8 +38,8 @@ func TestE2E(t *testing.T) {
 			inFile:  "1_deployment.yaml",
 			errFunc: require.NoError,
 			opts: annotationOptions{
-				clock:    testingclock.NewFakePassiveClock(time.Date(2024, 4, 10, 17, 40, 04, 0, time.UTC)),
-				position: Above,
+				Clock:    testingclock.NewFakePassiveClock(time.Date(2024, 4, 10, 17, 40, 04, 0, time.UTC)),
+				Position: Above,
 			},
 			outFile: "1_deployment_above.out",
 		},

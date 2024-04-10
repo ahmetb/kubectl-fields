@@ -33,10 +33,6 @@ import (
 	"k8s.io/utils/clock"
 )
 
-var (
-	flPosition *string
-)
-
 func main() {
 	klog.InitFlags(flag.CommandLine)
 	defer klog.Flush()
@@ -44,13 +40,18 @@ func main() {
 	flag.CommandLine.VisitAll(func(f *flag.Flag) {
 		pflag.CommandLine.AddGoFlag(f)
 	})
-	flPosition = pflag.StringP("position", "p", "inline", "comment position on the yaml (inline|above)")
+	flPosition := pflag.StringP("position", "p", "inline", "comment position on the yaml (inline|above)")
+	flTimeFmt := pflag.StringP("time-format", "t", "relative", "comment position on the yaml (relative|absolute)")
 	pflag.Parse()
 
 	var pos = map[string]annotationPosition{
 		"inline": Inline,
 		"above":  Above,
 	}[*flPosition]
+	var timeFmt = map[string]timeFormat{
+		"relative": Relative,
+		"absolute": Absolute,
+	}[*flTimeFmt]
 
 	in, err := io.ReadAll(os.Stdin)
 	if err != nil {
@@ -58,8 +59,9 @@ func main() {
 	}
 
 	if err := run(in, os.Stdout, annotationOptions{
-		clock:    clock.RealClock{},
-		position: pos}); err != nil {
+		Clock:    clock.RealClock{},
+		TimeFmt:  timeFmt,
+		Position: pos}); err != nil {
 		klog.Fatal(err)
 	}
 
@@ -67,6 +69,7 @@ func main() {
 }
 
 func run(in []byte, w io.Writer, opts annotationOptions) error {
+	klog.V(2).InfoS("options", "opts", opts)
 	// Parse the input as a YAML document
 	var doc yaml.Node
 	if err := yaml.NewDecoder(bytes.NewReader(in)).Decode(&doc); err != nil {

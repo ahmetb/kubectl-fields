@@ -19,30 +19,47 @@ func TestTimeFmt(t *testing.T) {
 	now := time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)
 	c := testingclock.NewFakePassiveClock(now)
 	cases := []struct {
+		fmt      timeFormat
 		offset   time.Duration
 		expected string
 	}{
-		{0, "0s ago"},
-		{time.Second, "1s ago"},
-		{time.Second*70 + time.Millisecond*999, "1m10s ago"},
-		{time.Minute*70 + time.Second, "1h10m ago"},
-		{time.Hour*25 + time.Minute*31, "1d1h ago"},
-		{time.Hour*24*365*2 + time.Hour*73, "2yr3d ago"},
+		{Relative, 0, "0s ago"},
+		{Relative, time.Second, "1s ago"},
+		{Relative, time.Second*70 + time.Millisecond*999, "1m10s ago"},
+		{Relative, time.Minute*70 + time.Second, "1h10m ago"},
+		{Relative, time.Hour*25 + time.Minute*31, "1d1h ago"},
+		{Relative, time.Hour*24*365*2 + time.Hour*73, "2yr3d ago"},
 	}
 	for _, tc := range cases {
 		t.Run(fmt.Sprintf("offset %s", tc.offset), func(t *testing.T) {
-			assert.Equal(t, tc.expected, timeFmt(c, now.Add(-tc.offset)))
+			assert.Equal(t, tc.expected, timeFmt(now.Add(-tc.offset), annotationOptions{
+				Clock:   c,
+				TimeFmt: tc.fmt,
+			}))
 		})
 	}
 }
 
 func TestAnnotation(t *testing.T) {
-	now := time.Now()
+	now := time.Date(2000, 1, 1, 1, 0, 0, 0, time.UTC)
 	c := testingclock.NewFakePassiveClock(now)
 
-	assert.Equal(t, "test", annotation(managerEntry{Name: "test"}, c))
-	assert.Equal(t, "test (/scale)", annotation(managerEntry{Name: "test", Subresource: "scale"}, c))
-	assert.Equal(t, "test (/scale) (1h ago)", annotation(managerEntry{Name: "test", Subresource: "scale", Time: now.Add(-time.Hour)}, c))
+	assert.Equal(t, "test", annotation(
+		managerEntry{Name: "test"},
+		annotationOptions{Clock: c},
+	))
+	assert.Equal(t, "test (/scale)", annotation(
+		managerEntry{Name: "test", Subresource: "scale"},
+		annotationOptions{Clock: c},
+	))
+	assert.Equal(t, "test (/scale) (1h ago)", annotation(
+		managerEntry{Name: "test", Subresource: "scale", Time: now.Add(-time.Hour)},
+		annotationOptions{Clock: c},
+	))
+	assert.Equal(t, "test (/scale) (2000-01-01T00:00:00Z)", annotation(
+		managerEntry{Name: "test", Subresource: "scale", Time: now.Add(-time.Hour)},
+		annotationOptions{Clock: c, TimeFmt: Absolute},
+	))
 }
 
 func TestAnnotateYAMLNode(t *testing.T) {
@@ -56,7 +73,7 @@ field3Above:
 
 	annotateYAMLNode(node.Content[0], &managedField{Manager: managerEntry{Name: "field1mgr"}}, annotationOptions{})
 	annotateYAMLNode(node.Content[2], &managedField{Manager: managerEntry{Name: "field2mgr"}}, annotationOptions{})
-	annotateYAMLNode(node.Content[4], &managedField{Manager: managerEntry{Name: "field3mgr"}}, annotationOptions{position: Above})
+	annotateYAMLNode(node.Content[4], &managedField{Manager: managerEntry{Name: "field3mgr"}}, annotationOptions{Position: Above})
 	annotateYAMLNode(node.Content[5].Content[0], &managedField{Manager: managerEntry{Name: "field3field1mgr"}}, annotationOptions{})
 
 	var b bytes.Buffer

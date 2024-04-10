@@ -21,9 +21,17 @@ const (
 	Above
 )
 
+type timeFormat int
+
+const (
+	Relative timeFormat = iota
+	Absolute
+)
+
 type annotationOptions struct {
-	clock    clock.PassiveClock
-	position annotationPosition
+	Clock    clock.PassiveClock
+	TimeFmt  timeFormat
+	Position annotationPosition
 }
 
 // annotateManagedField annotates the given managed field entry in node.
@@ -177,9 +185,9 @@ func findAssociativeListNode(node *yaml.Node, key value.FieldList) (*yaml.Node, 
 func annotateYAMLNode(node *yaml.Node, entry *managedField, opts annotationOptions) {
 	entry.Used = true
 
-	comment := annotation(entry.Manager, opts.clock)
+	comment := annotation(entry.Manager, opts)
 
-	if opts.position == Above {
+	if opts.Position == Above {
 		node.HeadComment = comment
 	} else {
 		node.LineComment = comment
@@ -187,19 +195,22 @@ func annotateYAMLNode(node *yaml.Node, entry *managedField, opts annotationOptio
 	klog.V(3).Info("annotated node")
 }
 
-func annotation(mgr managerEntry, c clock.PassiveClock) string {
+func annotation(mgr managerEntry, opts annotationOptions) string {
 	comment := fmt.Sprintf("%s", mgr.Name)
 	if mgr.Subresource != "" {
 		comment += fmt.Sprintf(" (/%s)", mgr.Subresource)
 	}
 	if !mgr.Time.IsZero() {
-		comment += fmt.Sprintf(" (%s)", timeFmt(c, mgr.Time))
+		comment += fmt.Sprintf(" (%s)", timeFmt(mgr.Time, opts))
 	}
 	return comment
 }
 
-func timeFmt(c clock.PassiveClock, t time.Time) string {
-	since := c.Now().Sub(t)
+func timeFmt(t time.Time, opts annotationOptions) string {
+	if opts.TimeFmt == Absolute {
+		return t.Format(time.RFC3339)
+	}
+	since := opts.Clock.Now().Sub(t)
 	d, _ := durafmt.ParseStringShort(since.Truncate(time.Second).String())
 	units, _ := durafmt.DefaultUnitsCoder.Decode("yr:yr,wk:wk,d:d,h:h,m:m,s:s,ms:ms,µs:µs")
 	return strings.ReplaceAll(d.LimitFirstN(2).Format(units), " ", "") + " ago"
