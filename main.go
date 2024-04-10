@@ -1,3 +1,23 @@
+/*
+ .o88o.
+ 888 `"
+o888oo  oooo d8b  .ooooo.   .ooooo.
+ 888    `888""8P d88' `88b d88' `88b
+ 888     888     888ooo888 888ooo888
+ 888     888     888    .o 888    .o
+o888o   d888b    `Y8bod8P' `Y8bod8P'
+                     oooo                         .    o8o
+                     `888                       .o8    `"'
+oo.ooooo.   .oooo.    888   .ooooo.   .oooo.o .o888oo oooo  ooo. .oo.    .ooooo.
+ 888' `88b `P  )88b   888  d88' `88b d88(  "8   888   `888  `888P"Y88b  d88' `88b
+ 888   888  .oP"888   888  888ooo888 `"Y88b.    888    888   888   888  888ooo888
+ 888   888 d8(  888   888  888    .o o.  )88b   888 .  888   888   888  888    .o
+ 888bod8P' `Y888""8o o888o `Y8bod8P' 8d"888P'   "888" o888o o888o o888o `Y8bod8P'
+ 888
+o888o
+
+*/
+
 package main
 
 import (
@@ -66,7 +86,9 @@ func main() {
 	klog.V(1).Infof("total %d managed fields from %d managers", len(allManagedFields), len(managedFieldEntries))
 
 	// Delete the metadata.managedFields from the original object
-	stripManagedFields(rootNode)
+	if !stripManagedFields(rootNode) {
+		klog.Warning("metadata.managedFields could not be stripped off from the object (probably a bug, please report it)")
+	}
 
 	// Annotate each managed field on the YAML document
 	for i := range allManagedFields {
