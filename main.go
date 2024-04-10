@@ -23,6 +23,7 @@ package main
 import (
 	"bytes"
 	"flag"
+	"fmt"
 	"io"
 	"os"
 
@@ -55,20 +56,28 @@ func main() {
 		klog.Fatalf("error reading input: %v", err)
 	}
 
+	if err := run(in, os.Stdout, annotationOptions{position: pos}); err != nil {
+		klog.Fatal(err)
+	}
+
+	klog.V(1).Info("done")
+}
+
+func run(in []byte, w io.Writer, opts annotationOptions) error {
 	// Parse the input as a YAML document
 	var doc yaml.Node
 	if err := yaml.NewDecoder(bytes.NewReader(in)).Decode(&doc); err != nil {
-		klog.Fatalf("error reading input as YAML document: %v", err)
+		return fmt.Errorf("error reading input as YAML document: %v", err)
 	}
 	if err := validateDocumentIsSingleKubernetesObject(&doc); err != nil {
-		klog.Fatalf("error validating object: %v", err)
+		return fmt.Errorf("error validating object: %v", err)
 	}
 	rootNode := doc.Content[0] // this is our Kubernetes object as YAML
 	klog.V(1).Info("parsed input as a single Kubernetes object")
 
 	managedFieldEntries, err := getManagedFields(in)
 	if err != nil {
-		klog.Fatalf("error getting managed fields: %v", err)
+		return fmt.Errorf("error getting managed fields: %v", err)
 	}
 	klog.V(1).Infof("found %d managed field entries", len(managedFieldEntries))
 
@@ -78,7 +87,7 @@ func main() {
 	for _, managedFieldsEntry := range managedFieldEntries {
 		fields, err := extractManagedFieldSet(managedFieldsEntry)
 		if err != nil {
-			klog.Fatalf("error extracting managed fields: %v", err)
+			return fmt.Errorf("error extracting managed fields: %v", err)
 		}
 		klog.V(1).Infof("found %d managed fields for manager %s", len(fields), managedFieldsEntry.Manager)
 		allManagedFields = append(allManagedFields, fields...)
@@ -93,18 +102,18 @@ func main() {
 	// Annotate each managed field on the YAML document
 	for i := range allManagedFields {
 		klog.V(3).InfoS("call annotating field", "path", allManagedFields[i].Path)
-		if err := annotateManagedField(rootNode, &allManagedFields[i], annotationOptions{position: pos}); err != nil {
-			klog.Fatalf("error annotating field %s: %v", allManagedFields[i].Path, err)
+		if err := annotateManagedField(rootNode, &allManagedFields[i], opts); err != nil {
+			return fmt.Errorf("error annotating field %s: %v", allManagedFields[i].Path, err)
 		}
 	}
 
 	if err := yaml.NewEncoder(os.Stdout).Encode(rootNode); err != nil {
-		klog.Fatalf("error marshaling the resulting object back to yaml: %v", err)
+		return fmt.Errorf("error marshaling the resulting object back to yaml: %v", err)
 	}
 	for _, v := range allManagedFields {
 		if !v.Used {
 			klog.Warningf("managed field %s is not annotated on the resulting output (probably a bug, please report it)", v.Path)
 		}
 	}
-	klog.V(1).Info("done")
+	return nil
 }
