@@ -109,7 +109,7 @@ func run(in []byte, w io.Writer, opts annotationOptions) error {
 	for i := range allManagedFields {
 		klog.V(3).InfoS("call annotating field", "path", allManagedFields[i].Path)
 		if err := annotateManagedField(rootNode, &allManagedFields[i], opts); err != nil {
-			return fmt.Errorf("error annotating field %s: %v", allManagedFields[i].Path, err)
+			klog.Warningf("error annotating field %s: %v", allManagedFields[i].Path, err)
 		}
 	}
 
