@@ -72,7 +72,10 @@ func main() {
 		klog.Fatalf("error reading input: %v", err)
 	}
 
-	if err := run(in, os.Stdout, annotationOptions{
+	out := &lineWriter{
+		w: &colorPrinter{w: os.Stdout},
+	}
+	if err := run(in, out, annotationOptions{
 		Clock:    clock.RealClock{},
 		TimeFmt:  timeFmt,
 		Position: pos}); err != nil {
@@ -132,6 +135,7 @@ func run(in []byte, w io.Writer, opts annotationOptions) error {
 	if err := enc.Encode(rootNode); err != nil {
 		return fmt.Errorf("error marshaling the resulting object back to yaml: %v", err)
 	}
+	defer enc.Close()
 	for _, v := range allManagedFields {
 		if !v.Used {
 			klog.Warningf("managed field %s is not annotated on the resulting output (probably a bug, please report it)", v.Path)

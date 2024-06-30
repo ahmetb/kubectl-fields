@@ -201,6 +201,7 @@ func annotateYAMLNode(node *yaml.Node, entry *managedField, opts annotationOptio
 
 	comment := annotation(entry.Manager, opts)
 
+	comment = fmt.Sprintf("<BEGIN>%s<END>", comment)
 	if opts.Position == Above {
 		node.HeadComment = comment
 	} else {
