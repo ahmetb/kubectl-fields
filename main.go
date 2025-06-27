@@ -72,16 +72,19 @@ func main() {
 		klog.Fatalf("error reading input: %v", err)
 	}
 
+	commentAligner := newAligningPrinter(os.Stdout)
+	defer commentAligner.Close() // flush
+
 	out := &lineWriter{
-		w: &colorPrinter{w: os.Stdout},
+		w: (&colorPrinter{w: commentAligner}),
 	}
+
 	if err := run(in, out, annotationOptions{
 		Clock:    clock.RealClock{},
 		TimeFmt:  timeFmt,
 		Position: pos}); err != nil {
 		klog.Fatal(err)
 	}
-
 	klog.V(1).Info("done")
 }
 
