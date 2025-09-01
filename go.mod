@@ -5,7 +5,7 @@ go 1.24.0
 require (
 	github.com/google/go-cmp v0.7.0
 	github.com/hako/durafmt v0.0.0-20210608085754-5c1018a4e16b
-	github.com/spf13/pflag v1.0.7
+	github.com/spf13/pflag v1.0.8
 	github.com/stretchr/testify v1.11.0
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/apimachinery v0.33.4
