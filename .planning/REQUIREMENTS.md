@@ -1,4 +1,4 @@
-# Requirements — kubectl-fields v1
+# Requirements -- kubectl-fields v1
 
 ## REQ-001: Stdin YAML Parsing
 **Source:** T1 | **Priority:** P0
@@ -6,7 +6,7 @@ Parse Kubernetes YAML from stdin. Handle piped and redirected input. Detect miss
 
 ## REQ-002: FieldsV1 Parsing
 **Source:** T2 | **Priority:** P0
-Parse Kubernetes `managedFields` FieldsV1 format — `f:` (struct fields), `k:` (list item by key), `v:` (list item by value) prefix notation. Map the recursive ownership tree back to corresponding YAML paths in the resource.
+Parse Kubernetes `managedFields` FieldsV1 format -- `f:` (struct fields), `k:` (list item by key), `v:` (list item by value) prefix notation. Map the recursive ownership tree back to corresponding YAML paths in the resource.
 
 ## REQ-003: Inline Comment Placement (Default)
 **Source:** T3 | **Priority:** P0
@@ -82,7 +82,7 @@ If input has no managedFields, output YAML unchanged with a stderr warning.
 
 ## REQ-021: Manager Name Shortening
 **Source:** D7 | **Priority:** P2
-Optional `--short-names` flag to shorten common manager names (e.g., `kubectl-client-side-apply` → `kubectl-csa`).
+Optional `--short-names` flag to shorten common manager names (e.g., `kubectl-client-side-apply` -> `kubectl-csa`).
 
 ## REQ-022: Color Palette Variety
 **Source:** D8 | **Priority:** P1
@@ -98,45 +98,46 @@ Palette of 8-16 distinct ANSI colors for manager names (not single-color like pr
 
 ## Out of Scope (Anti-Features)
 
-- **A1:** Live cluster querying — stdin-only, Unix pipe philosophy
-- **A2:** Conflict detection/resolution — show facts, not server-side logic
-- **A3:** YAML mutation — read-only annotation only
-- **A4:** JSON output — JSON has no comments
-- **A5:** Interactive/TUI mode — pipe-friendly CLI
-- **A6:** Configuration file — flags only
-- **A7:** Per-manager color customization — good defaults + --no-color
-- **A8:** Diff mode — separate tool/workflow
-- **A9:** File input (`-f`) — stdin covers all via `< file.yaml`
-- **A10:** Auto-update/version checking — rely on krew
+- **A1:** Live cluster querying -- stdin-only, Unix pipe philosophy
+- **A2:** Conflict detection/resolution -- show facts, not server-side logic
+- **A3:** YAML mutation -- read-only annotation only
+- **A4:** JSON output -- JSON has no comments
+- **A5:** Interactive/TUI mode -- pipe-friendly CLI
+- **A6:** Configuration file -- flags only
+- **A7:** Per-manager color customization -- good defaults + --no-color
+- **A8:** Diff mode -- separate tool/workflow
+- **A9:** File input (`-f`) -- stdin covers all via `< file.yaml`
+- **A10:** Auto-update/version checking -- rely on krew
 
 ## Traceability
 
-| REQ | Feature | Priority | Phase |
-|-----|---------|----------|-------|
-| REQ-001 | T1: Stdin parsing | P0 | Core |
-| REQ-002 | T2: FieldsV1 parsing | P0 | Core |
-| REQ-003 | T3: Inline comments | P0 | Core |
-| REQ-004 | T4: Above comments | P0 | Core |
-| REQ-005 | T5: Manager name | P0 | Core |
-| REQ-006 | T6: Subresource | P0 | Core |
-| REQ-007 | T7: Relative timestamps | P0 | Core |
-| REQ-008 | T8: Absolute timestamps | P1 | Core |
-| REQ-009 | T9: Strip managedFields | P0 | Core |
-| REQ-010 | T10: Valid YAML | P0 | Core |
-| REQ-011 | T11: Color on TTY | P1 | Color |
-| REQ-012 | T12: --no-color | P1 | Color |
-| REQ-013 | T13: Unmanaged bare | P0 | Core |
-| REQ-014 | T14: --no-time | P1 | Flags |
-| REQ-015 | D1: Multi-doc YAML | P0 | Input |
-| REQ-016 | D2: List kind | P0 | Input |
-| REQ-017 | D3: Comment alignment | P1 | Output |
-| REQ-018 | D4: Per-manager color | P1 | Color |
-| REQ-019 | D5: --color tri-state | P1 | Color |
-| REQ-020 | D6: Graceful missing | P1 | Input |
-| REQ-021 | D7: Short names | P2 | Flags |
-| REQ-022 | D8: Color palette | P1 | Color |
-| REQ-023 | D9: --managers filter | P2 | Flags |
-| REQ-024 | D10: Operation type | P2 | Flags |
+| REQ | Feature | Priority | Phase | Status |
+|-----|---------|----------|-------|--------|
+| REQ-001 | Stdin YAML parsing | P0 | Phase 1 | Pending |
+| REQ-002 | FieldsV1 parsing | P0 | Phase 1 | Pending |
+| REQ-003 | Inline comment placement | P0 | Phase 2 | Pending |
+| REQ-004 | Above comment placement | P0 | Phase 2 | Pending |
+| REQ-005 | Manager name display | P0 | Phase 2 | Pending |
+| REQ-006 | Subresource display | P0 | Phase 2 | Pending |
+| REQ-007 | Relative timestamps | P0 | Phase 1 | Pending |
+| REQ-008 | Absolute timestamps | P1 | Phase 3 | Pending |
+| REQ-009 | Strip managedFields | P0 | Phase 1 | Pending |
+| REQ-010 | Valid YAML output | P0 | Phase 1 | Pending |
+| REQ-011 | Color output on TTY | P1 | Phase 3 | Pending |
+| REQ-012 | --no-color flag | P1 | Phase 3 | Pending |
+| REQ-013 | Unmanaged fields bare | P0 | Phase 2 | Pending |
+| REQ-014 | --no-time flag | P1 | Phase 3 | Pending |
+| REQ-015 | Multi-document YAML | P0 | Phase 1 | Pending |
+| REQ-016 | List kind support | P0 | Phase 1 | Pending |
+| REQ-017 | Comment alignment | P1 | Phase 3 | Pending |
+| REQ-018 | Per-manager deterministic color | P1 | Phase 3 | Pending |
+| REQ-019 | --color tri-state flag | P1 | Phase 3 | Pending |
+| REQ-020 | Graceful missing managedFields | P1 | Phase 1 | Pending |
+| REQ-021 | Manager name shortening | P2 | Phase 4 | Pending |
+| REQ-022 | Color palette variety | P1 | Phase 3 | Pending |
+| REQ-023 | --managers filter | P2 | Phase 4 | Pending |
+| REQ-024 | Operation type display | P2 | Phase 4 | Pending |
 
 ---
 *Generated: 2026-02-07 from FEATURES.md research*
+*Updated: 2026-02-07 with phase mappings from ROADMAP.md*
