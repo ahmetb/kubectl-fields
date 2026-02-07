@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: List
+metadata:
+  resourceVersion: ""
+items:
+- apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: cm-one
+  data:
+    key: val1
+- apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: cm-two
+  data:
+    key: val2

@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: test-config
+  namespace: default
+  annotations:
+    description: |
+      This is a multi-line
+      annotation value.
+data:
+  enabled: "yes"
+  debug: "true"
+  count: "null"
+  simple: plain-value
+labels: {}
