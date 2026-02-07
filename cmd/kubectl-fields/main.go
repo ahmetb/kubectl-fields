@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/rewanthtammana/kubectl-fields/internal/managed"
 	"github.com/rewanthtammana/kubectl-fields/internal/parser"
 	"github.com/spf13/cobra"
 	"go.yaml.in/yaml/v3"
@@ -36,6 +37,33 @@ reading raw managedFields JSON.`,
 			var allDocs []*yaml.Node
 			for _, doc := range docs {
 				allDocs = append(allDocs, parser.UnwrapListKind(doc)...)
+			}
+
+			// Extract and strip managedFields from each resource.
+			foundManagedFields := false
+			for _, doc := range allDocs {
+				if doc.Kind != yaml.DocumentNode || len(doc.Content) == 0 {
+					continue
+				}
+				root := doc.Content[0]
+
+				// Extract managedFields entries (stored for Phase 2 annotation).
+				entries, err := managed.ExtractManagedFields(root)
+				if err != nil {
+					return fmt.Errorf("extracting managedFields: %w", err)
+				}
+				if len(entries) > 0 {
+					foundManagedFields = true
+				}
+				// TODO(phase2): use entries for field annotation
+				_ = entries
+
+				// Strip managedFields from the YAML tree.
+				managed.StripManagedFields(root)
+			}
+
+			if !foundManagedFields {
+				fmt.Fprintln(os.Stderr, "Warning: no managedFields found. Did you use --show-managed-fields?")
 			}
 
 			if err := parser.EncodeDocuments(os.Stdout, allDocs); err != nil {
