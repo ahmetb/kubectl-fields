@@ -29,11 +29,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. List kind input (kind: List with items array) processes each item's managedFields and strips them individually
   4. Input YAML without managedFields passes through unchanged with a warning on stderr
   5. Round-trip fidelity: output YAML preserves the original formatting (indentation, quoting, key ordering) with no changes other than managedFields removal and added comments
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 01-01: Go project scaffold, YAML parser, multi-doc and List kind handling
-- [ ] 01-02: ManagedFields extraction, FieldsV1 prefix parsing, time formatter, managedFields stripping
+- [ ] 01-01-PLAN.md -- Go project scaffold, YAML parser with multi-doc/List kind, round-trip fidelity tests
+- [ ] 01-02-PLAN.md -- ManagedFields extraction, FieldsV1 prefix parsing, time formatter, stripping, CLI wiring
 
 ### Phase 2: Annotation Engine
 **Goal**: Users see ownership annotations on every managed field -- the tool's core value proposition works end-to-end
