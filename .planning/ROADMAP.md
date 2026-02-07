@@ -32,7 +32,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 2 plans
 
 Plans:
-- [ ] 01-01-PLAN.md -- Go project scaffold, YAML parser with multi-doc/List kind, round-trip fidelity tests
+- [x] 01-01-PLAN.md -- Go project scaffold, YAML parser with multi-doc/List kind, round-trip fidelity tests
 - [ ] 01-02-PLAN.md -- ManagedFields extraction, FieldsV1 prefix parsing, time formatter, stripping, CLI wiring
 
 ### Phase 2: Annotation Engine
@@ -87,7 +87,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation + Input Pipeline | 0/2 | Not started | - |
+| 1. Foundation + Input Pipeline | 1/2 | In progress | - |
 | 2. Annotation Engine | 0/2 | Not started | - |
 | 3. Output Polish + Color | 0/2 | Not started | - |
 | 4. Extended Features | 0/1 | Not started | - |
