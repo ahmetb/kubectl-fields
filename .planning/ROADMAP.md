@@ -12,7 +12,7 @@ Build a kubectl plugin that annotates Kubernetes YAML with field ownership comme
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Foundation + Input Pipeline** - Parse stdin YAML, extract and strip managedFields, validate round-trip fidelity
+- [x] **Phase 1: Foundation + Input Pipeline** - Parse stdin YAML, extract and strip managedFields, validate round-trip fidelity
 - [ ] **Phase 2: Annotation Engine** - Parallel descent algorithm matching FieldsV1 ownership to YAML nodes with comment injection
 - [ ] **Phase 3: Output Polish + Color** - Color system, comment alignment, timestamp/display flags
 - [ ] **Phase 4: Extended Features** - Manager filtering, name shortening, operation type display
@@ -33,7 +33,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 Plans:
 - [x] 01-01-PLAN.md -- Go project scaffold, YAML parser with multi-doc/List kind, round-trip fidelity tests
-- [ ] 01-02-PLAN.md -- ManagedFields extraction, FieldsV1 prefix parsing, time formatter, stripping, CLI wiring
+- [x] 01-02-PLAN.md -- ManagedFields extraction, FieldsV1 prefix parsing, time formatter, stripping, CLI wiring
 
 ### Phase 2: Annotation Engine
 **Goal**: Users see ownership annotations on every managed field -- the tool's core value proposition works end-to-end
@@ -87,7 +87,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation + Input Pipeline | 1/2 | In progress | - |
+| 1. Foundation + Input Pipeline | 2/2 | Complete | 2026-02-07 |
 | 2. Annotation Engine | 0/2 | Not started | - |
 | 3. Output Polish + Color | 0/2 | Not started | - |
 | 4. Extended Features | 0/1 | Not started | - |
