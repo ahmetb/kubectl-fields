@@ -23,8 +23,8 @@ func ParseFieldsV1Key(key string) (prefix string, content string) {
 
 // ParseAssociativeKey parses the JSON content of a k: prefix key into a map.
 // For example, `{"name":"nginx"}` returns map["name"]="nginx".
-func ParseAssociativeKey(jsonStr string) (map[string]interface{}, error) {
-	var result map[string]interface{}
+func ParseAssociativeKey(jsonStr string) (map[string]any, error) {
+	var result map[string]any
 	if err := json.Unmarshal([]byte(jsonStr), &result); err != nil {
 		return nil, fmt.Errorf("parsing associative key JSON %q: %w", jsonStr, err)
 	}
