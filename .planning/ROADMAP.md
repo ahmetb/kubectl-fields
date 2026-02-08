@@ -45,11 +45,11 @@ Plans:
   3. Fields with subresource ownership show the subresource in the annotation (e.g., `# kube-controller-manager (/status) (2h ago)`)
   4. Fields not tracked in any managedFields entry appear bare with no annotation
   5. List items matched by associative keys (k: prefix -- e.g., containers by name, ports by containerPort+protocol) are correctly annotated
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 02-01: Parallel descent walker with f: field matching and comment injection (inline + above modes)
-- [ ] 02-02: List item matching (k: associative keys, v: set values) and CLI wiring with cobra
+- [ ] 02-01-PLAN.md -- Parallel descent walker with f: field matching and comment injection (inline + above modes)
+- [ ] 02-02-PLAN.md -- List item matching (k: associative keys, v: set values) and CLI wiring with cobra
 
 ### Phase 3: Output Polish + Color
 **Goal**: The tool produces professionally formatted, colorized output that is pleasant to read in a terminal and correct when piped
