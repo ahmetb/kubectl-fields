@@ -125,3 +125,59 @@ func TestFormatOutput_AlignmentAlwaysRuns(t *testing.T) {
 	// "a: 1" padded to 18 chars
 	assert.Contains(t, got, "a: 1              # mgr (1h ago)")
 }
+
+func TestFormatOutput_NoANSIWhenPiped(t *testing.T) {
+	// Simulate piped output (non-TTY): color disabled
+	input := "replicas: 3 # kubectl-apply (50m ago)\n" +
+		"image: nginx:1.14.2 # kubectl-client-side-apply (50m ago)\n" +
+		"status:\n" +
+		"  availableReplicas: 3 # kube-controller-manager /status (1h ago)\n"
+
+	got := FormatOutput(input, false, nil)
+
+	// Verify zero ANSI escape sequences in output
+	assert.NotContains(t, got, "\x1b", "piped output must contain no ANSI escape codes")
+	// But comments should still be present
+	assert.Contains(t, got, "# kubectl-apply")
+	assert.Contains(t, got, "# kube-controller-manager /status")
+}
+
+func TestFormatOutput_ANSIPresentWhenColorEnabled(t *testing.T) {
+	// Color enabled: ANSI codes should be present in comment portions
+	input := "replicas: 3 # kubectl-apply (50m ago)\n" +
+		"image: nginx:1.14.2 # helm (2h ago)\n"
+
+	cm := NewColorManager()
+	got := FormatOutput(input, true, cm)
+
+	// Must contain ANSI escape sequences
+	assert.Contains(t, got, "\x1b[", "colored output must contain ANSI escape codes")
+	assert.Contains(t, got, Reset, "colored output must contain ANSI reset")
+	// YAML content should remain uncolored
+	assert.Contains(t, got, "replicas: 3")
+	assert.Contains(t, got, "image: nginx:1.14.2")
+}
+
+func TestFormatOutput_AlignmentIntegration_RealisticBlock(t *testing.T) {
+	// Realistic block from a deployment: adjacent annotated lines should align
+	input := "  replicas: 3 # kubectl-apply (50m ago)\n" +
+		"  revisionHistoryLimit: 10 # kubectl-apply (50m ago)\n" +
+		"  progressDeadlineSeconds: 600 # kubectl-apply (50m ago)\n"
+
+	got := FormatOutput(input, false, nil)
+
+	// All three lines form a block. Find the comment column for each line.
+	lines := strings.Split(strings.TrimSuffix(got, "\n"), "\n")
+	assert.Len(t, lines, 3)
+
+	commentCols := make([]int, len(lines))
+	for i, line := range lines {
+		idx := strings.Index(line, " # ")
+		assert.Greater(t, idx, 0, "line %d should have inline comment", i)
+		commentCols[i] = idx
+	}
+
+	// All comments should be at the same column
+	assert.Equal(t, commentCols[0], commentCols[1], "lines 0 and 1 should have aligned comments")
+	assert.Equal(t, commentCols[1], commentCols[2], "lines 1 and 2 should have aligned comments")
+}
