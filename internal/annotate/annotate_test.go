@@ -23,7 +23,7 @@ func TestFormatComment_Basic(t *testing.T) {
 		Manager: "kubectl-client-side-apply",
 		Time:    testNow.Add(-50 * time.Minute),
 	}
-	got := formatComment(info, testNow, MtimeRelative)
+	got := formatComment(info, testNow, MtimeRelative, false)
 	assert.Equal(t, "kubectl-client-side-apply (50m ago)", got)
 }
 
@@ -33,7 +33,7 @@ func TestFormatComment_WithSubresource(t *testing.T) {
 		Subresource: "status",
 		Time:        testNow.Add(-1 * time.Hour),
 	}
-	got := formatComment(info, testNow, MtimeRelative)
+	got := formatComment(info, testNow, MtimeRelative, false)
 	// New format: space + slash, no parentheses around subresource
 	assert.Equal(t, "kube-controller-manager /status (1h ago)", got)
 }
@@ -43,7 +43,7 @@ func TestFormatComment_NoSubresource(t *testing.T) {
 		Manager: "helm",
 		Time:    testNow.Add(-3 * time.Hour),
 	}
-	got := formatComment(info, testNow, MtimeRelative)
+	got := formatComment(info, testNow, MtimeRelative, false)
 	assert.Equal(t, "helm (3h ago)", got)
 	assert.NotContains(t, got, "/")
 }
@@ -54,7 +54,7 @@ func TestFormatComment_AbsoluteMode(t *testing.T) {
 		Manager: "kubectl-apply",
 		Time:    ts,
 	}
-	got := formatComment(info, testNow, MtimeAbsolute)
+	got := formatComment(info, testNow, MtimeAbsolute, false)
 	assert.Equal(t, "kubectl-apply (2026-02-07T12:00:00Z)", got)
 }
 
@@ -65,7 +65,7 @@ func TestFormatComment_AbsoluteModeWithSubresource(t *testing.T) {
 		Subresource: "status",
 		Time:        ts,
 	}
-	got := formatComment(info, testNow, MtimeAbsolute)
+	got := formatComment(info, testNow, MtimeAbsolute, false)
 	assert.Equal(t, "kube-controller-manager /status (2026-02-07T12:00:00Z)", got)
 }
 
@@ -74,7 +74,7 @@ func TestFormatComment_HideMode(t *testing.T) {
 		Manager: "kubectl-apply",
 		Time:    testNow.Add(-5 * time.Minute),
 	}
-	got := formatComment(info, testNow, MtimeHide)
+	got := formatComment(info, testNow, MtimeHide, false)
 	assert.Equal(t, "kubectl-apply", got)
 }
 
@@ -84,7 +84,7 @@ func TestFormatComment_HideModeWithSubresource(t *testing.T) {
 		Subresource: "status",
 		Time:        testNow.Add(-5 * time.Minute),
 	}
-	got := formatComment(info, testNow, MtimeHide)
+	got := formatComment(info, testNow, MtimeHide, false)
 	assert.Equal(t, "kube-controller-manager /status", got)
 }
 
@@ -94,8 +94,74 @@ func TestFormatComment_EmptyMtimeDefaultsToRelative(t *testing.T) {
 		Time:    testNow.Add(-2 * time.Hour),
 	}
 	// Empty string for mtime should behave as relative
-	got := formatComment(info, testNow, "")
+	got := formatComment(info, testNow, "", false)
 	assert.Equal(t, "helm (2h ago)", got)
+}
+
+// --- formatComment showOperation tests ---
+
+func TestFormatComment_ShowOperation_Relative(t *testing.T) {
+	info := AnnotationInfo{
+		Manager:   "kubectl-apply",
+		Operation: "Update",
+		Time:      testNow.Add(-50 * time.Minute),
+	}
+	got := formatComment(info, testNow, MtimeRelative, true)
+	assert.Equal(t, "kubectl-apply (50m ago, update)", got)
+}
+
+func TestFormatComment_ShowOperation_Absolute(t *testing.T) {
+	ts := time.Date(2026, 2, 7, 12, 0, 0, 0, time.UTC)
+	info := AnnotationInfo{
+		Manager:   "kubectl-apply",
+		Operation: "Apply",
+		Time:      ts,
+	}
+	got := formatComment(info, testNow, MtimeAbsolute, true)
+	assert.Equal(t, "kubectl-apply (2026-02-07T12:00:00Z, apply)", got)
+}
+
+func TestFormatComment_ShowOperation_Hide(t *testing.T) {
+	info := AnnotationInfo{
+		Manager:   "kubectl-apply",
+		Operation: "Update",
+		Time:      testNow,
+	}
+	got := formatComment(info, testNow, MtimeHide, true)
+	assert.Equal(t, "kubectl-apply (update)", got)
+}
+
+func TestFormatComment_ShowOperation_WithSubresource(t *testing.T) {
+	info := AnnotationInfo{
+		Manager:     "kube-controller-manager",
+		Operation:   "Update",
+		Subresource: "status",
+		Time:        testNow.Add(-1 * time.Hour),
+	}
+	got := formatComment(info, testNow, MtimeRelative, true)
+	assert.Equal(t, "kube-controller-manager /status (1h ago, update)", got)
+}
+
+func TestFormatComment_ShowOperation_EmptyOperation(t *testing.T) {
+	info := AnnotationInfo{
+		Manager:   "kubectl-apply",
+		Operation: "",
+		Time:      testNow.Add(-50 * time.Minute),
+	}
+	got := formatComment(info, testNow, MtimeRelative, true)
+	// Empty operation should produce same output as showOperation=false
+	assert.Equal(t, "kubectl-apply (50m ago)", got)
+}
+
+func TestFormatComment_ShowOperation_False(t *testing.T) {
+	info := AnnotationInfo{
+		Manager:   "kubectl-apply",
+		Operation: "Update",
+		Time:      testNow.Add(-50 * time.Minute),
+	}
+	got := formatComment(info, testNow, MtimeRelative, false)
+	// showOperation=false must produce byte-identical output to existing behavior
+	assert.Equal(t, "kubectl-apply (50m ago)", got)
 }
 
 // --- Annotate integration tests ---

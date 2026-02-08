@@ -105,6 +105,21 @@ func TestExtractManagerName(t *testing.T) {
 			comment:  "kubectl-client-side-apply (50m ago)",
 			expected: "kubectl-client-side-apply",
 		},
+		{
+			name:     "with operation and age",
+			comment:  "# manager (5d ago, apply)",
+			expected: "manager",
+		},
+		{
+			name:     "with subresource and operation",
+			comment:  "# manager /status (1h ago, update)",
+			expected: "manager",
+		},
+		{
+			name:     "operation only (hide mode)",
+			comment:  "# manager (apply)",
+			expected: "manager",
+		},
 	}
 
 	for _, tc := range tests {

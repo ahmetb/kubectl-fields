@@ -12,6 +12,7 @@ import (
 // AnnotationInfo holds the ownership metadata for a single field annotation.
 type AnnotationInfo struct {
 	Manager     string
+	Operation   string
 	Subresource string
 	Time        time.Time
 }
@@ -222,6 +223,7 @@ func findSequenceItemByValue(seq *yaml.Node, jsonContent string) *yaml.Node {
 func annotationFrom(entry managed.ManagedFieldsEntry) AnnotationInfo {
 	return AnnotationInfo{
 		Manager:     entry.Manager,
+		Operation:   entry.Operation,
 		Subresource: entry.Subresource,
 		Time:        entry.Time,
 	}

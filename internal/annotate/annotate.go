@@ -2,6 +2,7 @@ package annotate
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/rewanthtammana/kubectl-fields/internal/managed"
@@ -25,9 +26,10 @@ const (
 
 // Options configures annotation behaviour.
 type Options struct {
-	Above bool      // true = HeadComment above field key, false = LineComment inline
-	Now   time.Time // current time for relative timestamps (enables deterministic tests)
-	Mtime MtimeMode // timestamp display mode (default empty string treated as relative)
+	Above         bool      // true = HeadComment above field key, false = LineComment inline
+	Now           time.Time // current time for relative timestamps (enables deterministic tests)
+	Mtime         MtimeMode // timestamp display mode (default empty string treated as relative)
+	ShowOperation bool      // true = append lowercase operation type (apply, update) to annotations
 }
 
 // effectiveMtime returns the effective mtime mode, treating empty string as relative.
@@ -62,7 +64,7 @@ func Annotate(root *yaml.Node, entries []managed.ManagedFieldsEntry, opts Option
 
 	// Pass 2 -- Inject comments.
 	for _, target := range targets {
-		comment := formatComment(target.Info, opts.Now, mtime)
+		comment := formatComment(target.Info, opts.Now, mtime, opts.ShowOperation)
 		injectComment(target, comment, opts.Above)
 	}
 }
@@ -139,15 +141,19 @@ func isFlowEmpty(node *yaml.Node) bool {
 
 // formatComment builds the annotation string for a field.
 //
-// Format varies by mtime mode:
+// Format varies by mtime mode and showOperation:
 //
 //	relative: "manager /sub (2h15m ago)" or "manager (2h15m ago)"
 //	absolute: "manager /sub (2026-02-07T12:00:00Z)" or "manager (2026-02-07T12:00:00Z)"
 //	hide:     "manager /sub" or "manager"
 //
+// When showOperation is true and info.Operation is non-empty, the lowercase
+// operation type is appended after timestamp: "manager (2h15m ago, apply)".
+// With MtimeHide: "manager (apply)". If Operation is empty, output is unchanged.
+//
 // The returned string does NOT include the "# " prefix -- go-yaml adds that
 // automatically when encoding HeadComment or LineComment.
-func formatComment(info AnnotationInfo, now time.Time, mtime MtimeMode) string {
+func formatComment(info AnnotationInfo, now time.Time, mtime MtimeMode, showOperation bool) string {
 	var base string
 	if info.Subresource != "" {
 		base = fmt.Sprintf("%s /%s", info.Manager, info.Subresource)
@@ -155,13 +161,28 @@ func formatComment(info AnnotationInfo, now time.Time, mtime MtimeMode) string {
 		base = info.Manager
 	}
 
+	op := ""
+	if showOperation && info.Operation != "" {
+		op = strings.ToLower(info.Operation)
+	}
+
 	switch mtime {
 	case MtimeAbsolute:
-		return fmt.Sprintf("%s (%s)", base, info.Time.UTC().Format(time.RFC3339))
+		ts := info.Time.UTC().Format(time.RFC3339)
+		if op != "" {
+			return fmt.Sprintf("%s (%s, %s)", base, ts, op)
+		}
+		return fmt.Sprintf("%s (%s)", base, ts)
 	case MtimeHide:
+		if op != "" {
+			return fmt.Sprintf("%s (%s)", base, op)
+		}
 		return base
 	default: // MtimeRelative or empty
 		age := timeutil.FormatRelativeTime(now, info.Time)
+		if op != "" {
+			return fmt.Sprintf("%s (%s, %s)", base, age, op)
+		}
 		return fmt.Sprintf("%s (%s)", base, age)
 	}
 }
