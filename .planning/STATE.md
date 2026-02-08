@@ -5,34 +5,34 @@
 See: .planning/PROJECT.md (updated 2026-02-07)
 
 **Core value:** Instantly see who manages every field in a Kubernetes resource, and when it last changed -- without leaving the terminal or reading raw managedFields JSON.
-**Current focus:** Phase 2 - Annotation Engine
+**Current focus:** Phase 2 - Annotation Engine (COMPLETE)
 
 ## Current Position
 
 Phase: 2 of 4 (Annotation Engine)
-Plan: 1 of 2 in current phase
-Status: In progress
-Last activity: 2026-02-08 -- Completed 02-01-PLAN.md
+Plan: 2 of 2 in current phase
+Status: Phase complete
+Last activity: 2026-02-08 -- Completed 02-02-PLAN.md
 
-Progress: [###.......] 43% (3/7 plans)
+Progress: [####......] 57% (4/7 plans)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 3
-- Average duration: 5m 23s
-- Total execution time: 16m 9s
+- Total plans completed: 4
+- Average duration: 5m 35s
+- Total execution time: 22m 20s
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 1. Foundation + Input Pipeline | 2/2 | 12m 31s | 6m 16s |
-| 2. Annotation Engine | 1/2 | 3m 38s | 3m 38s |
+| 2. Annotation Engine | 2/2 | 9m 49s | 4m 55s |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (4m 27s), 01-02 (8m 4s), 02-01 (3m 38s)
-- Trend: fast execution on well-scoped annotation engine plan
+- Last 5 plans: 01-01 (4m 27s), 01-02 (8m 4s), 02-01 (3m 38s), 02-02 (6m 11s)
+- Trend: consistent execution, annotation engine phase completed in under 10 minutes total
 
 *Updated after each plan completion*
 
@@ -56,7 +56,11 @@ Recent decisions affecting current work:
 - 02-01: Two-pass collect-then-inject annotation architecture with targets map keyed by ValueNode pointer
 - 02-01: parentKeyNode passed through recursion so dot marker annotates correct parent key
 - 02-01: isFlowEmpty workaround for go-yaml dropping LineComment on key for empty [] and {} values
-- 02-01: k: and v: prefix handling stubbed with TODO(02-02) for plan 02-02
+- 02-02: Golden files updated to match go-yaml actual rendering (tool output is source of truth)
+- 02-02: k: item dot marker uses HeadComment on Content[0] of MappingNode for inline mode
+- 02-02: v: set value uses json.Unmarshal for JSON-encoded string decoding before comparison
+- 02-02: Annotate before StripManagedFields in CLI pipeline
+- 02-02: UPDATE_GOLDEN=1 env var for regenerating golden files
 
 ### Pending Todos
 
@@ -65,10 +69,10 @@ None.
 ### Blockers/Concerns
 
 - ~~Round-trip fidelity risk: go-yaml v3 may alter YAML formatting during decode/encode.~~ RESOLVED in 01-01: perfect fidelity confirmed with all test fixtures.
-- go-yaml LineComment quirk: empty flow-style containers ([], {}) silently drop LineComment on key node. Workaround in place (isFlowEmpty routes to value node).
+- ~~go-yaml LineComment quirk: empty flow-style containers ([], {}) silently drop LineComment on key node.~~ Workaround in place (isFlowEmpty routes to value node). Now also annotates these containers correctly in golden output.
 
 ## Session Continuity
 
-Last session: 2026-02-08T01:11:10Z
-Stopped at: Completed 02-01-PLAN.md (Walker and annotation engine) -- Plan 02-02 next
+Last session: 2026-02-08T01:22:00Z
+Stopped at: Completed 02-02-PLAN.md (List item matching, CLI wiring, golden files) -- Phase 2 complete, Phase 3 next
 Resume file: None
