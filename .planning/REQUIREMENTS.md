@@ -120,21 +120,21 @@ Palette of 8-16 distinct ANSI colors for manager names (not single-color like pr
 | REQ-005 | Manager name display | P0 | Phase 2 | Complete |
 | REQ-006 | Subresource display | P0 | Phase 2 | Complete |
 | REQ-007 | Relative timestamps | P0 | Phase 1 | Complete |
-| REQ-008 | Absolute timestamps | P1 | Phase 3 | Pending |
+| REQ-008 | Absolute timestamps | P1 | Phase 3 | Complete |
 | REQ-009 | Strip managedFields | P0 | Phase 1 | Complete |
 | REQ-010 | Valid YAML output | P0 | Phase 1 | Complete |
-| REQ-011 | Color output on TTY | P1 | Phase 3 | Pending |
-| REQ-012 | --no-color flag | P1 | Phase 3 | Pending |
+| REQ-011 | Color output on TTY | P1 | Phase 3 | Complete |
+| REQ-012 | --no-color flag | P1 | Phase 3 | Complete |
 | REQ-013 | Unmanaged fields bare | P0 | Phase 2 | Complete |
-| REQ-014 | --no-time flag | P1 | Phase 3 | Pending |
+| REQ-014 | --no-time flag | P1 | Phase 3 | Complete |
 | REQ-015 | Multi-document YAML | P0 | Phase 1 | Complete |
 | REQ-016 | List kind support | P0 | Phase 1 | Complete |
-| REQ-017 | Comment alignment | P1 | Phase 3 | Pending |
-| REQ-018 | Per-manager deterministic color | P1 | Phase 3 | Pending |
-| REQ-019 | --color tri-state flag | P1 | Phase 3 | Pending |
+| REQ-017 | Comment alignment | P1 | Phase 3 | Complete |
+| REQ-018 | Per-manager deterministic color | P1 | Phase 3 | Complete |
+| REQ-019 | --color tri-state flag | P1 | Phase 3 | Complete |
 | REQ-020 | Graceful missing managedFields | P1 | Phase 1 | Complete |
 | REQ-021 | Manager name shortening | P2 | Phase 4 | Pending |
-| REQ-022 | Color palette variety | P1 | Phase 3 | Pending |
+| REQ-022 | Color palette variety | P1 | Phase 3 | Complete |
 | REQ-023 | --managers filter | P2 | Phase 4 | Pending |
 | REQ-024 | Operation type display | P2 | Phase 4 | Pending |
 

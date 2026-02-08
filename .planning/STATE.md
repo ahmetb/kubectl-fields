@@ -11,8 +11,8 @@ See: .planning/PROJECT.md (updated 2026-02-07)
 
 Phase: 3 of 4 (Output Polish + Color) -- COMPLETE
 Plan: 2 of 2 in current phase
-Status: Phase complete
-Last activity: 2026-02-08 -- Completed 03-02-PLAN.md
+Status: Phase complete, verified ✓
+Last activity: 2026-02-08 -- Phase 3 verified (5/5 must-haves passed, 8/8 requirements satisfied)
 
 Progress: [######....] 86% (6/7 plans)
 
@@ -65,7 +65,7 @@ Recent decisions affecting current work:
 - 03-01: Two-unit time with weeks: decompose into y/mo/w/d/h/m/s, output two largest non-zero units
 - 03-01: New subresource format: "manager /sub (age)" with space+slash, no parentheses around subresource
 - 03-01: MtimeMode defaults to relative when empty string (backward compatible)
-- 03-01: 8-color bright ANSI palette with insertion-order cycling
+- 03-01: 8-color bright ANSI palette with FNV-1a hash-based assignment (cross-invocation consistent)
 - 03-01: Per-block alignment: consecutive annotated lines aligned to max content width + 2-space gap
 - 03-01: NO_COLOR env var respected in auto mode but overridden by always
 - 03-02: pflag.Value custom types for --color and --mtime flags with validation
@@ -80,9 +80,10 @@ None.
 
 - ~~Round-trip fidelity risk: go-yaml v3 may alter YAML formatting during decode/encode.~~ RESOLVED in 01-01: perfect fidelity confirmed with all test fixtures.
 - ~~go-yaml LineComment quirk: empty flow-style containers ([], {}) silently drop LineComment on key node.~~ Workaround in place (isFlowEmpty routes to value node). Now also annotates these containers correctly in golden output.
+- ~~Insertion-order color assignment: same manager could get different colors across invocations.~~ RESOLVED: switched to FNV-1a hash-based palette indexing (commit 12f23a5).
 
 ## Session Continuity
 
-Last session: 2026-02-08T02:38:02Z
-Stopped at: Completed 03-02-PLAN.md
+Last session: 2026-02-08T02:50:00Z
+Stopped at: Phase 3 verified (5/5 must-haves passed) -- Phase 4 next
 Resume file: None
