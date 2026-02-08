@@ -61,11 +61,11 @@ Plans:
   3. `--color always` forces color even when piped, `--color never` disables color even on TTY, `--no-color` disables color
   4. Inline comments across adjacent lines are aligned into a readable column (not ragged)
   5. `--absolute-time` shows ISO timestamps instead of relative, `--no-time` hides timestamps entirely
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 03-01: Color manager (hash-based palette assignment, TTY detection, --color flag), comment alignment
-- [ ] 03-02: Timestamp flags (--absolute-time, --no-time) and end-to-end golden file tests
+- [ ] 03-01-PLAN.md -- Internal libraries: two-unit time formatting, updated comment format with --mtime modes, output package (color manager, comment alignment, formatter pipeline)
+- [ ] 03-02-PLAN.md -- CLI flag wiring (--color, --mtime), x/term TTY detection, post-processing pipeline integration, golden file regeneration
 
 ### Phase 4: Extended Features
 **Goal**: Power users can filter and customize annotation display for specific debugging workflows
