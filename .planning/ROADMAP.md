@@ -68,17 +68,15 @@ Plans:
 - [x] 03-02-PLAN.md -- CLI flag wiring (--color, --mtime), x/term TTY detection, post-processing pipeline integration, golden file regeneration
 
 ### Phase 4: Extended Features
-**Goal**: Power users can filter and customize annotation display for specific debugging workflows
+**Goal**: Power users can see operation type (apply/update) in annotations via `--show-operation` flag
 **Depends on**: Phase 3
-**Requirements**: REQ-021, REQ-023, REQ-024
+**Requirements**: REQ-024
 **Success Criteria** (what must be TRUE):
-  1. `--managers=name1,name2` shows annotations only for the specified managers; other managed fields appear bare
-  2. `--short-names` shortens well-known manager names (e.g., `kubectl-client-side-apply` becomes `kubectl-csa`)
-  3. `--show-operation` includes the operation type in annotations (e.g., `# kubectl-csa [Apply] (5d ago)`)
-**Plans**: TBD
+  1. `--show-operation` includes the operation type in annotations (e.g., `# kubectl-client-side-apply (5d ago, apply)`)
+**Plans**: 1 plan
 
 Plans:
-- [ ] 04-01: Manager filter, name shortening, and operation type display flags
+- [ ] 04-01-PLAN.md -- Add Operation to AnnotationInfo, extend formatComment with showOperation, wire --show-operation CLI flag, golden files
 
 ## Progress
 
