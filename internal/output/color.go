@@ -1,6 +1,7 @@
 package output
 
 import (
+	"hash/fnv"
 	"os"
 	"strings"
 )
@@ -9,7 +10,7 @@ import (
 const Reset = "\x1b[0m"
 
 // BrightPalette contains 8 bright ANSI colors for manager name colorization.
-// Colors are assigned to managers in insertion order.
+// Colors are assigned to managers via hash-based index for cross-invocation consistency.
 var BrightPalette = []string{
 	"\x1b[96m", // Bright Cyan
 	"\x1b[92m", // Bright Green
@@ -21,33 +22,28 @@ var BrightPalette = []string{
 	"\x1b[33m", // Yellow (standard)
 }
 
-// ColorManager assigns ANSI colors to manager names in insertion order,
-// cycling through the palette when all colors have been used.
+// ColorManager assigns ANSI colors to manager names using hash-based indexing
+// for cross-invocation consistency (same manager always gets the same color).
 type ColorManager struct {
 	palette []string
-	assign  map[string]int
-	order   []string
 }
 
 // NewColorManager creates a ColorManager with the default BrightPalette.
 func NewColorManager() *ColorManager {
 	return &ColorManager{
 		palette: BrightPalette,
-		assign:  make(map[string]int),
 	}
 }
 
 // ColorFor returns the ANSI escape code for the given manager name.
-// On first encounter, the manager is assigned the next color in the palette
-// (cycling if all colors are used). Subsequent calls return the same color.
+// Uses FNV-1a hash of the manager name to deterministically pick a palette
+// index, ensuring the same manager always gets the same color regardless of
+// encounter order across invocations.
 func (cm *ColorManager) ColorFor(managerName string) string {
-	if idx, ok := cm.assign[managerName]; ok {
-		return cm.palette[idx%len(cm.palette)]
-	}
-	idx := len(cm.order)
-	cm.assign[managerName] = idx
-	cm.order = append(cm.order, managerName)
-	return cm.palette[idx%len(cm.palette)]
+	h := fnv.New32a()
+	h.Write([]byte(managerName))
+	idx := int(h.Sum32()) % len(cm.palette)
+	return cm.palette[idx]
 }
 
 // Wrap wraps text in the manager's assigned ANSI color code followed by reset.

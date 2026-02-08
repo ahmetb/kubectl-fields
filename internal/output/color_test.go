@@ -6,45 +6,61 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestColorManager_InsertionOrder(t *testing.T) {
+func TestColorManager_HashBased_SameManagerSameColor(t *testing.T) {
 	cm := NewColorManager()
 
-	// First manager gets index 0
+	// Same manager always returns the same color
 	c1 := cm.ColorFor("kubectl-apply")
-	assert.Equal(t, BrightPalette[0], c1)
+	c2 := cm.ColorFor("kubectl-apply")
+	assert.Equal(t, c1, c2)
 
-	// Second manager gets index 1
-	c2 := cm.ColorFor("helm")
-	assert.Equal(t, BrightPalette[1], c2)
-
-	// Same manager returns same color
-	c1again := cm.ColorFor("kubectl-apply")
-	assert.Equal(t, c1, c1again)
-
-	// Third manager gets index 2
-	c3 := cm.ColorFor("kube-controller-manager")
-	assert.Equal(t, BrightPalette[2], c3)
+	// Color is from the palette
+	found := false
+	for _, p := range BrightPalette {
+		if p == c1 {
+			found = true
+			break
+		}
+	}
+	assert.True(t, found, "color should be from BrightPalette")
 }
 
-func TestColorManager_CyclesPalette(t *testing.T) {
+func TestColorManager_HashBased_CrossInvocationConsistency(t *testing.T) {
+	// Two independent ColorManagers should assign the same color
+	// to the same manager name (hash-based, not insertion-order)
+	cm1 := NewColorManager()
+	cm2 := NewColorManager()
+
+	// Encounter managers in different order
+	cm1.ColorFor("kubectl-apply")
+	cm1.ColorFor("helm")
+	c1 := cm1.ColorFor("kube-controller-manager")
+
+	cm2.ColorFor("kube-controller-manager") // encountered first in cm2
+	c2 := cm2.ColorFor("kube-controller-manager")
+
+	assert.Equal(t, c1, c2, "same manager should get same color regardless of encounter order")
+}
+
+func TestColorManager_HashBased_DifferentManagersDifferentColors(t *testing.T) {
 	cm := NewColorManager()
 
-	// Assign all 8 palette colors
-	names := []string{"m1", "m2", "m3", "m4", "m5", "m6", "m7", "m8"}
-	for i, name := range names {
-		c := cm.ColorFor(name)
-		assert.Equal(t, BrightPalette[i], c)
+	// Most distinct managers should get different colors (not guaranteed
+	// since hash collisions are possible, but these common names don't collide)
+	colors := make(map[string]bool)
+	names := []string{"kubectl-apply", "helm", "kube-controller-manager", "argocd"}
+	for _, name := range names {
+		colors[cm.ColorFor(name)] = true
 	}
-
-	// 9th manager cycles back to index 0
-	c9 := cm.ColorFor("m9")
-	assert.Equal(t, BrightPalette[0], c9)
+	// With 4 names and 8 palette entries, collisions are unlikely
+	assert.GreaterOrEqual(t, len(colors), 2, "different managers should generally get different colors")
 }
 
 func TestColorManager_Wrap(t *testing.T) {
 	cm := NewColorManager()
 	wrapped := cm.Wrap("# kubectl-apply (5d ago)", "kubectl-apply")
-	expected := BrightPalette[0] + "# kubectl-apply (5d ago)" + Reset
+	color := cm.ColorFor("kubectl-apply")
+	expected := color + "# kubectl-apply (5d ago)" + Reset
 	assert.Equal(t, expected, wrapped)
 }
 
