@@ -253,6 +253,112 @@ func TestAnnotate_AboveContainerField(t *testing.T) {
 	assert.True(t, foundAppComment, "app should have above comment")
 }
 
+// --- k: (associative key) annotation tests ---
+
+func TestAnnotate_InlineListItemByKey(t *testing.T) {
+	// containers sequence with one item containing name and image
+	root := parseYAML(t, `containers:
+- name: nginx
+  image: nginx:1.14
+`)
+
+	entries := []managed.ManagedFieldsEntry{
+		{
+			Manager: "kubectl-apply",
+			Time:    testNow.Add(-30 * time.Minute),
+			FieldsV1: buildFieldsV1(t, `{
+				"f:containers": {
+					"k:{\"name\":\"nginx\"}": {
+						".": {},
+						"f:image": {}
+					}
+				}
+			}`),
+		},
+	}
+
+	Annotate(root, entries, Options{Now: testNow})
+	output := encodeYAML(t, root)
+
+	// k: item dot marker: HeadComment on first key renders as "- # comment"
+	assert.Contains(t, output, "# kubectl-apply (30m ago)")
+	// f:image within the item should have inline comment
+	assert.Contains(t, output, "image: nginx:1.14 # kubectl-apply (30m ago)")
+}
+
+func TestAnnotate_InlineSetValue(t *testing.T) {
+	// finalizers sequence with one scalar value
+	root := parseYAML(t, `finalizers:
+- example.com/foo
+`)
+
+	entries := []managed.ManagedFieldsEntry{
+		{
+			Manager: "finalizerpatcher",
+			Time:    testNow.Add(-10 * time.Minute),
+			FieldsV1: buildFieldsV1(t, `{
+				"f:finalizers": {
+					".": {},
+					"v:\"example.com/foo\"": {}
+				}
+			}`),
+		},
+	}
+
+	Annotate(root, entries, Options{Now: testNow})
+	output := encodeYAML(t, root)
+
+	// v: set value inline: LineComment on the scalar
+	assert.Contains(t, output, "- example.com/foo # finalizerpatcher (10m ago)")
+	// Container dot marker on finalizers key
+	assert.Contains(t, output, "finalizers: # finalizerpatcher (10m ago)")
+}
+
+func TestAnnotate_AboveListItemByKey(t *testing.T) {
+	root := parseYAML(t, `containers:
+- name: nginx
+  image: nginx:1.14
+`)
+
+	entries := []managed.ManagedFieldsEntry{
+		{
+			Manager: "kubectl-apply",
+			Time:    testNow.Add(-30 * time.Minute),
+			FieldsV1: buildFieldsV1(t, `{
+				"f:containers": {
+					"k:{\"name\":\"nginx\"}": {
+						".": {},
+						"f:image": {}
+					}
+				}
+			}`),
+		},
+	}
+
+	Annotate(root, entries, Options{Above: true, Now: testNow})
+	output := encodeYAML(t, root)
+
+	// Above mode: HeadComment before the item (on the MappingNode)
+	assert.Contains(t, output, "# kubectl-apply (30m ago)")
+	// The comment should appear before the item's first field
+	lines := strings.Split(output, "\n")
+	foundItemComment := false
+	foundImageComment := false
+	for i, line := range lines {
+		if strings.Contains(line, "# kubectl-apply") && i+1 < len(lines) {
+			nextLine := strings.TrimSpace(lines[i+1])
+			if strings.HasPrefix(nextLine, "- ") || strings.HasPrefix(nextLine, "name:") {
+				foundItemComment = true
+			}
+			if strings.HasPrefix(nextLine, "image:") {
+				foundImageComment = true
+			}
+		}
+	}
+	assert.True(t, foundItemComment, "k: item should have above comment")
+	assert.True(t, foundImageComment, "image field should have above comment")
+}
+
 // --- helpers ---
 
 // buildFieldsV1 parses a JSON FieldsV1 string into a yaml.Node MappingNode

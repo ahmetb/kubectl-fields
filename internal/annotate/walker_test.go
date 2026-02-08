@@ -239,16 +239,110 @@ func TestWalkFieldsV1_UnmanagedFieldsIgnored(t *testing.T) {
 	assert.False(t, ok, "ports should not be targeted")
 }
 
-func TestWalkFieldsV1_KAndVPrefixesSkipped(t *testing.T) {
-	// Ensure k: and v: prefixes are skipped without error
-	yamlRoot := mappingNode(
-		scalarNode("name"), scalarNode("test"),
-	)
+// --- Sequence item helper ---
 
+// sequenceNode builds a SequenceNode from child nodes.
+func sequenceNode(items ...*yaml.Node) *yaml.Node {
+	return &yaml.Node{
+		Kind:    yaml.SequenceNode,
+		Tag:     "!!seq",
+		Content: items,
+	}
+}
+
+// intScalarNode builds a ScalarNode with int tag.
+func intScalarNode(value string) *yaml.Node {
+	return &yaml.Node{
+		Kind:  yaml.ScalarNode,
+		Tag:   "!!int",
+		Value: value,
+	}
+}
+
+// --- findSequenceItemByKey tests ---
+
+func TestFindSequenceItemByKey_SingleField(t *testing.T) {
+	nginx := mappingNode(scalarNode("name"), scalarNode("nginx"), scalarNode("image"), scalarNode("nginx:1.14"))
+	redis := mappingNode(scalarNode("name"), scalarNode("redis"), scalarNode("image"), scalarNode("redis:6"))
+	seq := sequenceNode(nginx, redis)
+
+	found := findSequenceItemByKey(seq, map[string]any{"name": "nginx"})
+	assert.Equal(t, nginx, found, "should find the nginx item")
+}
+
+func TestFindSequenceItemByKey_MultiField(t *testing.T) {
+	port80tcp := mappingNode(scalarNode("containerPort"), intScalarNode("80"), scalarNode("protocol"), scalarNode("TCP"))
+	port443tcp := mappingNode(scalarNode("containerPort"), intScalarNode("443"), scalarNode("protocol"), scalarNode("TCP"))
+	seq := sequenceNode(port80tcp, port443tcp)
+
+	found := findSequenceItemByKey(seq, map[string]any{"containerPort": float64(80), "protocol": "TCP"})
+	assert.Equal(t, port80tcp, found, "should find port 80 TCP item")
+}
+
+func TestFindSequenceItemByKey_NotFound(t *testing.T) {
+	item := mappingNode(scalarNode("name"), scalarNode("nginx"))
+	seq := sequenceNode(item)
+
+	found := findSequenceItemByKey(seq, map[string]any{"name": "redis"})
+	assert.Nil(t, found, "should return nil when no match")
+}
+
+// --- matchValue tests ---
+
+func TestMatchValue_Types(t *testing.T) {
+	t.Run("string match", func(t *testing.T) {
+		assert.True(t, matchValue("nginx", "nginx"))
+		assert.False(t, matchValue("nginx", "redis"))
+	})
+	t.Run("float64 match (JSON number)", func(t *testing.T) {
+		assert.True(t, matchValue("80", float64(80)))
+		assert.False(t, matchValue("443", float64(80)))
+	})
+	t.Run("bool match", func(t *testing.T) {
+		assert.True(t, matchValue("true", true))
+		assert.True(t, matchValue("false", false))
+		assert.False(t, matchValue("true", false))
+	})
+	t.Run("unsupported type returns false", func(t *testing.T) {
+		assert.False(t, matchValue("anything", []string{"not", "a", "match"}))
+	})
+}
+
+// --- findSequenceItemByValue tests ---
+
+func TestFindSequenceItemByValue_String(t *testing.T) {
+	foo := scalarNode("example.com/foo")
+	bar := scalarNode("example.com/bar")
+	seq := sequenceNode(foo, bar)
+
+	found := findSequenceItemByValue(seq, `"example.com/foo"`)
+	assert.Equal(t, foo, found, "should find the foo scalar")
+}
+
+func TestFindSequenceItemByValue_NotFound(t *testing.T) {
+	foo := scalarNode("example.com/foo")
+	seq := sequenceNode(foo)
+
+	found := findSequenceItemByValue(seq, `"example.com/missing"`)
+	assert.Nil(t, found, "should return nil for missing value")
+}
+
+// --- walkFieldsV1 k: and v: tests ---
+
+func TestWalkFieldsV1_AssociativeKey(t *testing.T) {
+	// YAML: sequence with one item {name: nginx, image: nginx:1.14}
+	imageVal := scalarNode("nginx:1.14")
+	imageKey := scalarNode("image")
+	nameVal := scalarNode("nginx")
+	nameKey := scalarNode("name")
+	item := mappingNode(nameKey, nameVal, imageKey, imageVal)
+	seq := sequenceNode(item)
+
+	// FieldsV1: {k:{"name":"nginx"}: {f:image: {}}}
 	fieldsV1 := mappingNode(
-		scalarNode("f:name"), emptyMapping(),
-		scalarNode("k:{\"name\":\"test\"}"), emptyMapping(),
-		scalarNode("v:something"), emptyMapping(),
+		scalarNode(`k:{"name":"nginx"}`), mappingNode(
+			scalarNode("f:image"), emptyMapping(),
+		),
 	)
 
 	entry := managed.ManagedFieldsEntry{
@@ -257,10 +351,67 @@ func TestWalkFieldsV1_KAndVPrefixesSkipped(t *testing.T) {
 	}
 
 	targets := make(map[*yaml.Node]AnnotationTarget)
-	walkFieldsV1(yamlRoot, nil, fieldsV1, entry, targets)
+	walkFieldsV1(seq, nil, fieldsV1, entry, targets)
 
-	// Only f:name should be in targets; k: and v: should be skipped
-	assert.Len(t, targets, 1)
-	_, ok := targets[yamlRoot.Content[1]]
-	assert.True(t, ok, "name should be targeted")
+	// image value should be targeted
+	target, ok := targets[imageVal]
+	assert.True(t, ok, "image value node should be in targets")
+	assert.Equal(t, imageKey, target.KeyNode)
+	assert.Equal(t, imageVal, target.ValueNode)
+	assert.Equal(t, "test-manager", target.Info.Manager)
+}
+
+func TestWalkFieldsV1_AssociativeKeyDot(t *testing.T) {
+	// YAML: sequence with one item {name: nginx, image: x}
+	item := mappingNode(scalarNode("name"), scalarNode("nginx"), scalarNode("image"), scalarNode("x"))
+	seq := sequenceNode(item)
+
+	// FieldsV1: {k:{"name":"nginx"}: {.: {}}}
+	fieldsV1 := mappingNode(
+		scalarNode(`k:{"name":"nginx"}`), mappingNode(
+			scalarNode("."), emptyMapping(),
+		),
+	)
+
+	entry := managed.ManagedFieldsEntry{
+		Manager: "test-manager",
+		Time:    time.Date(2025, 1, 15, 10, 0, 0, 0, time.UTC),
+	}
+
+	targets := make(map[*yaml.Node]AnnotationTarget)
+	walkFieldsV1(seq, nil, fieldsV1, entry, targets)
+
+	// The item MappingNode itself should be targeted with dot marker.
+	// For k: items with dot, KeyNode is nil and ValueNode is the item.
+	target, ok := targets[item]
+	assert.True(t, ok, "item should have dot target")
+	assert.Nil(t, target.KeyNode, "k: dot target should have nil KeyNode")
+	assert.Equal(t, item, target.ValueNode)
+	assert.Equal(t, "test-manager", target.Info.Manager)
+}
+
+func TestWalkFieldsV1_SetValue(t *testing.T) {
+	// YAML: sequence with one scalar item
+	fooScalar := scalarNode("example.com/foo")
+	seq := sequenceNode(fooScalar)
+
+	// FieldsV1: {v:"example.com/foo": {}}
+	fieldsV1 := mappingNode(
+		scalarNode(`v:"example.com/foo"`), emptyMapping(),
+	)
+
+	entry := managed.ManagedFieldsEntry{
+		Manager: "finalizerpatcher",
+		Time:    time.Date(2025, 1, 15, 10, 0, 0, 0, time.UTC),
+	}
+
+	targets := make(map[*yaml.Node]AnnotationTarget)
+	walkFieldsV1(seq, nil, fieldsV1, entry, targets)
+
+	// The scalar should be targeted.
+	target, ok := targets[fooScalar]
+	assert.True(t, ok, "scalar should be in targets")
+	assert.Nil(t, target.KeyNode, "v: target should have nil KeyNode")
+	assert.Equal(t, fooScalar, target.ValueNode)
+	assert.Equal(t, "finalizerpatcher", target.Info.Manager)
 }

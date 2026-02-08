@@ -1,6 +1,8 @@
 package annotate
 
 import (
+	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/rewanthtammana/kubectl-fields/internal/managed"
@@ -76,9 +78,44 @@ func walkFieldsV1(yamlNode *yaml.Node, parentKeyNode *yaml.Node, fieldsNode *yam
 				walkFieldsV1(targetVal, targetKey, val, entry, targets)
 			}
 
-		case "k", "v":
-			// TODO(02-02): list item matching handled in plan 02-02
-			continue
+		case "k":
+			// Associative key prefix: yamlNode is a SequenceNode containing
+			// MappingNodes. Parse the JSON key and find the matching item.
+			assocKey, err := managed.ParseAssociativeKey(content)
+			if err != nil || assocKey == nil {
+				continue
+			}
+			item := findSequenceItemByKey(yamlNode, assocKey)
+			if item == nil {
+				continue
+			}
+			if isLeaf(val) {
+				// Rare: k: item is a leaf itself.
+				targets[item] = AnnotationTarget{
+					KeyNode:   nil,
+					ValueNode: item,
+					Info:      info,
+				}
+			} else {
+				// Non-leaf: recurse into the item's fields.
+				// Pass nil for parentKeyNode since sequence items
+				// don't have a key in the parent mapping sense.
+				walkFieldsV1(item, nil, val, entry, targets)
+			}
+
+		case "v":
+			// Set value prefix: yamlNode is a SequenceNode containing
+			// ScalarNodes. Find the matching scalar by value.
+			item := findSequenceItemByValue(yamlNode, content)
+			if item == nil {
+				continue
+			}
+			// v: items are always leaves.
+			targets[item] = AnnotationTarget{
+				KeyNode:   nil,
+				ValueNode: item,
+				Info:      info,
+			}
 
 		default:
 			// Unknown prefix: skip
@@ -106,6 +143,79 @@ func findMappingField(mapping *yaml.Node, fieldName string) (*yaml.Node, *yaml.N
 // do not recurse further).
 func isLeaf(node *yaml.Node) bool {
 	return node.Kind == yaml.MappingNode && len(node.Content) == 0
+}
+
+// findSequenceItemByKey locates a MappingNode in a SequenceNode whose fields
+// match all key-value pairs in assocKey (from a FieldsV1 k: prefix).
+func findSequenceItemByKey(seq *yaml.Node, assocKey map[string]any) *yaml.Node {
+	if seq == nil || seq.Kind != yaml.SequenceNode {
+		return nil
+	}
+	for _, item := range seq.Content {
+		if item.Kind != yaml.MappingNode {
+			continue
+		}
+		if matchesAssociativeKey(item, assocKey) {
+			return item
+		}
+	}
+	return nil
+}
+
+// matchesAssociativeKey returns true if every key-value pair in assocKey has a
+// matching field in the YAML MappingNode.
+func matchesAssociativeKey(mapping *yaml.Node, assocKey map[string]any) bool {
+	for field, jsonVal := range assocKey {
+		_, valNode := findMappingField(mapping, field)
+		if valNode == nil {
+			return false
+		}
+		if !matchValue(valNode.Value, jsonVal) {
+			return false
+		}
+	}
+	return true
+}
+
+// matchValue compares a YAML scalar string value against a JSON-decoded value.
+// Handles string, float64 (JSON numbers), and bool comparisons.
+func matchValue(yamlVal string, jsonVal any) bool {
+	switch v := jsonVal.(type) {
+	case string:
+		return yamlVal == v
+	case float64:
+		return yamlVal == fmt.Sprintf("%g", v)
+	case bool:
+		return yamlVal == fmt.Sprintf("%t", v)
+	default:
+		return false
+	}
+}
+
+// findSequenceItemByValue locates a ScalarNode in a SequenceNode by its value.
+// The content parameter is JSON-encoded (e.g., `"example.com/foo"`); it is
+// decoded before comparison so that the quotes are stripped.
+func findSequenceItemByValue(seq *yaml.Node, jsonContent string) *yaml.Node {
+	if seq == nil || seq.Kind != yaml.SequenceNode {
+		return nil
+	}
+
+	var decoded any
+	if err := json.Unmarshal([]byte(jsonContent), &decoded); err != nil {
+		return nil
+	}
+
+	str, ok := decoded.(string)
+	if !ok {
+		return nil
+	}
+
+	for _, item := range seq.Content {
+		if item.Kind == yaml.ScalarNode && item.Value == str {
+			return item
+		}
+	}
+	return nil
 }
 
 // annotationFrom creates an AnnotationInfo from a ManagedFieldsEntry.

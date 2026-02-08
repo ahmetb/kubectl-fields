@@ -63,15 +63,33 @@ func injectComment(target AnnotationTarget, comment string, above bool) {
 	switch target.ValueNode.Kind {
 	case yaml.ScalarNode:
 		// Scalar value: comment at end of value line.
+		// Handles both f: field values and v: set values (KeyNode==nil).
 		target.ValueNode.LineComment = comment
-	case yaml.MappingNode, yaml.SequenceNode:
-		// Container field. When the value is empty and renders in flow style
-		// (e.g., "conditions: []" or "data: {}"), go-yaml drops LineComment
-		// from the key node. In that case, place the comment on the value node
-		// so it appears at the end of the same line.
-		if isFlowEmpty(target.ValueNode) {
+	case yaml.MappingNode:
+		if target.KeyNode == nil {
+			// k: list item with dot marker (no parent key).
+			// Place HeadComment on the first key of the mapping.
+			// This renders as "- # comment\n  firstKey: val".
+			if len(target.ValueNode.Content) > 0 {
+				target.ValueNode.Content[0].HeadComment = comment
+			}
+		} else if isFlowEmpty(target.ValueNode) {
+			// Empty flow-style mapping (e.g., "data: {}").
 			target.ValueNode.LineComment = comment
-		} else if target.KeyNode != nil {
+		} else {
+			// Container field with parent key.
+			target.KeyNode.LineComment = comment
+		}
+	case yaml.SequenceNode:
+		if target.KeyNode == nil {
+			// k: list item that is a sequence (unusual but possible).
+			// HeadComment on the sequence itself.
+			target.ValueNode.HeadComment = comment
+		} else if isFlowEmpty(target.ValueNode) {
+			// Empty flow-style sequence (e.g., "conditions: []").
+			target.ValueNode.LineComment = comment
+		} else {
+			// Container field with parent key.
 			target.KeyNode.LineComment = comment
 		}
 	default:
