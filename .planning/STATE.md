@@ -9,19 +9,19 @@ See: .planning/PROJECT.md (updated 2026-02-07)
 
 ## Current Position
 
-Phase: 3 of 4 (Output Polish + Color) -- COMPLETE
-Plan: 2 of 2 in current phase
-Status: Phase complete, verified ✓
-Last activity: 2026-02-08 -- Phase 3 verified (5/5 must-haves passed, 8/8 requirements satisfied)
+Phase: 4 of 4 (Extended Features)
+Plan: 1 of 1 in current phase
+Status: Phase complete
+Last activity: 2026-02-08 -- Completed 04-01-PLAN.md (--show-operation flag)
 
-Progress: [######....] 86% (6/7 plans)
+Progress: [##########] 100% (7/7 plans)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 6
-- Average duration: 4m 50s
-- Total execution time: 31m 1s
+- Total plans completed: 7
+- Average duration: 4m 39s
+- Total execution time: 34m 38s
 
 **By Phase:**
 
@@ -30,10 +30,11 @@ Progress: [######....] 86% (6/7 plans)
 | 1. Foundation + Input Pipeline | 2/2 | 12m 31s | 6m 16s |
 | 2. Annotation Engine | 2/2 | 9m 49s | 4m 55s |
 | 3. Output Polish + Color | 2/2 | 8m 41s | 4m 21s |
+| 4. Extended Features | 1/1 | 3m 37s | 3m 37s |
 
 **Recent Trend:**
-- Last 5 plans: 02-01 (3m 38s), 02-02 (6m 11s), 03-01 (6m 5s), 03-02 (2m 36s)
-- Trend: fastest plan yet at 2m 36s, consistent improvement
+- Last 5 plans: 02-02 (6m 11s), 03-01 (6m 5s), 03-02 (2m 36s), 04-01 (3m 37s)
+- Trend: consistent sub-5-minute execution, all phases accelerating
 
 *Updated after each plan completion*
 
@@ -71,6 +72,9 @@ Recent decisions affecting current work:
 - 03-02: pflag.Value custom types for --color and --mtime flags with validation
 - 03-02: Buffer-then-postprocess pipeline: encode to buffer, FormatOutput, write to stdout
 - 03-02: Golden files unchanged from Plan 01 -- already correct for new format
+- 04-01: Operation string lowercased via strings.ToLower for consistent display
+- 04-01: Empty Operation gracefully falls back to non-operation format
+- 04-01: MtimeHide + ShowOperation produces "manager (operation)" with parentheses
 
 ### Pending Todos
 
@@ -84,6 +88,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-08T02:50:00Z
-Stopped at: Phase 3 verified (5/5 must-haves passed) -- Phase 4 next
+Last session: 2026-02-08T03:26:53Z
+Stopped at: Completed 04-01-PLAN.md -- all phases complete (7/7 plans)
 Resume file: None
