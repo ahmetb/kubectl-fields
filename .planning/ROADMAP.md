@@ -13,7 +13,7 @@ Build a kubectl plugin that annotates Kubernetes YAML with field ownership comme
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Foundation + Input Pipeline** - Parse stdin YAML, extract and strip managedFields, validate round-trip fidelity
-- [ ] **Phase 2: Annotation Engine** - Parallel descent algorithm matching FieldsV1 ownership to YAML nodes with comment injection
+- [x] **Phase 2: Annotation Engine** - Parallel descent algorithm matching FieldsV1 ownership to YAML nodes with comment injection
 - [ ] **Phase 3: Output Polish + Color** - Color system, comment alignment, timestamp/display flags
 - [ ] **Phase 4: Extended Features** - Manager filtering, name shortening, operation type display
 
@@ -48,8 +48,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 02-01-PLAN.md -- Parallel descent walker with f: field matching and comment injection (inline + above modes)
-- [ ] 02-02-PLAN.md -- List item matching (k: associative keys, v: set values) and CLI wiring with cobra
+- [x] 02-01-PLAN.md -- Parallel descent walker with f: field matching and comment injection (inline + above modes)
+- [x] 02-02-PLAN.md -- List item matching (k: associative keys, v: set values) and CLI wiring with cobra
 
 ### Phase 3: Output Polish + Color
 **Goal**: The tool produces professionally formatted, colorized output that is pleasant to read in a terminal and correct when piped
@@ -88,6 +88,6 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation + Input Pipeline | 2/2 | Complete | 2026-02-07 |
-| 2. Annotation Engine | 0/2 | Not started | - |
+| 2. Annotation Engine | 2/2 | Complete | 2026-02-08 |
 | 3. Output Polish + Color | 0/2 | Not started | - |
 | 4. Extended Features | 0/1 | Not started | - |
