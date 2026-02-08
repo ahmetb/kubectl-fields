@@ -7,6 +7,20 @@ import (
 // MinGap is the minimum number of spaces between YAML content and an inline comment.
 const MinGap = 2
 
+// OutlierThreshold is the maximum allowed difference in content width between
+// any line in an alignment block and the block's minimum. Lines exceeding this
+// threshold are ejected into their own block to prevent a single long line from
+// pushing all adjacent comments far to the right.
+const OutlierThreshold = 40
+
+// annotatedLine holds a parsed line with its inline comment separated out.
+type annotatedLine struct {
+	content    string
+	comment    string
+	hasComment bool
+	original   string
+}
+
 // splitInlineComment splits a line at the inline comment delimiter " # ".
 // Returns the content before the delimiter, the comment from "# " onward
 // (including the "# " prefix), and whether an inline comment was found.
@@ -35,18 +49,15 @@ func splitInlineComment(line string) (content string, comment string, hasComment
 // inline comment breaks the block. Within each block, comments are aligned
 // to (max content width + MinGap) so they form a uniform column.
 //
+// Lines that are outliers (content width exceeding the block minimum by more
+// than OutlierThreshold) are aligned independently so a single long line does
+// not push all adjacent comments far to the right.
+//
 // Above-mode head comments (lines starting with optional whitespace then "#")
 // pass through unchanged. They are not considered inline comments and do not
 // participate in block formation.
 func AlignComments(text string) string {
 	lines := strings.Split(text, "\n")
-
-	type annotatedLine struct {
-		content    string
-		comment    string
-		hasComment bool
-		original   string
-	}
 
 	parsed := make([]annotatedLine, len(lines))
 	for i, line := range lines {
@@ -69,29 +80,69 @@ func AlignComments(text string) string {
 			continue
 		}
 
-		// Start of a block: find extent
+		// Collect consecutive annotated lines into a raw block
 		blockStart := i
-		maxContentLen := 0
 		for i < len(parsed) && parsed[i].hasComment {
-			if len(parsed[i].content) > maxContentLen {
-				maxContentLen = len(parsed[i].content)
-			}
 			i++
 		}
 
-		// Alignment column = max content length + MinGap
-		alignCol := maxContentLen + MinGap
-
-		// Format each line in the block
-		for j := blockStart; j < i; j++ {
-			contentLen := len(parsed[j].content)
-			gap := alignCol - contentLen
-			if gap < MinGap {
-				gap = MinGap
-			}
-			result[j] = parsed[j].content + strings.Repeat(" ", gap) + parsed[j].comment
-		}
+		// Split raw block into sub-blocks by ejecting outlier lines.
+		alignBlock(parsed[blockStart:i], result[blockStart:i])
 	}
 
 	return strings.Join(result, "\n")
+}
+
+// alignBlock formats a slice of consecutive annotated lines, splitting outliers
+// into their own alignment groups. Each non-outlier group is aligned to its own
+// max content width. Outlier lines get MinGap spacing.
+func alignBlock(block []annotatedLine, out []string) {
+	// Find minimum content width to detect outliers
+	minLen := len(block[0].content)
+	for _, al := range block[1:] {
+		if len(al.content) < minLen {
+			minLen = len(al.content)
+		}
+	}
+
+	// Partition into sub-blocks: consecutive non-outlier lines form a group,
+	// each outlier is its own group.
+	type span struct {
+		start, end int
+	}
+	var spans []span
+
+	i := 0
+	for i < len(block) {
+		if len(block[i].content)-minLen > OutlierThreshold {
+			// Outlier: standalone span
+			spans = append(spans, span{i, i + 1})
+			i++
+		} else {
+			// Non-outlier: collect consecutive non-outliers
+			start := i
+			for i < len(block) && len(block[i].content)-minLen <= OutlierThreshold {
+				i++
+			}
+			spans = append(spans, span{start, i})
+		}
+	}
+
+	// Align each span independently
+	for _, s := range spans {
+		maxContentLen := 0
+		for j := s.start; j < s.end; j++ {
+			if len(block[j].content) > maxContentLen {
+				maxContentLen = len(block[j].content)
+			}
+		}
+		alignCol := maxContentLen + MinGap
+		for j := s.start; j < s.end; j++ {
+			gap := alignCol - len(block[j].content)
+			if gap < MinGap {
+				gap = MinGap
+			}
+			out[j] = block[j].content + strings.Repeat(" ", gap) + block[j].comment
+		}
+	}
 }

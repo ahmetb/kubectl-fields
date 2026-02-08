@@ -61,16 +61,57 @@ func TestAlignComments_BrokenByUnannotatedLine(t *testing.T) {
 }
 
 func TestAlignComments_LongLineMinGap(t *testing.T) {
+	// With outlier threshold=40, a 29-char difference (37-8) is NOT an outlier,
+	// so they still align together.
 	input := "short: 1 # mgr (1h ago)\nvery-long-field-name: very-long-value # mgr (1h ago)\n"
 
 	got := AlignComments(input)
 
 	// "short: 1" is 8 chars, "very-long-field-name: very-long-value" is 37 chars
-	// Max = 37, align col = 39
-	// "short: 1" gets padded to 39 then comment
+	// Difference is 29, under threshold of 40, so same block
 	assert.Contains(t, got, "very-long-field-name: very-long-value  # mgr (1h ago)")
-	// short line should be padded with spaces
 	assert.Contains(t, got, "short: 1"+spaces(31)+"# mgr (1h ago)")
+}
+
+func TestAlignComments_OutlierEjected(t *testing.T) {
+	// A line exceeding OutlierThreshold (40) beyond the block minimum gets ejected.
+	// The outlier splits the block: lines before/after it form separate sub-blocks.
+	short := "a: 1"                                                            // 4 chars
+	medium := "bb: 22"                                                          // 6 chars
+	long := "very-long-key-that-exceeds-threshold: very-long-value-here-too!!" // 65 chars (61 > 40 over min of 4)
+
+	input := short + " # mgr-a (1h ago)\n" + long + " # mgr-b (2h ago)\n" + medium + " # mgr-c (3h ago)\n"
+
+	got := AlignComments(input)
+
+	// short is alone in sub-block 1 (before outlier): aligned at 4+2=6
+	// long is outlier in sub-block 2: aligned at 65+2=67
+	// medium is alone in sub-block 3 (after outlier): aligned at 6+2=8
+	assert.Contains(t, got, "a: 1  # mgr-a (1h ago)")      // MinGap (sole member)
+	assert.Contains(t, got, long+"  # mgr-b (2h ago)")     // MinGap for outlier
+	assert.Contains(t, got, "bb: 22  # mgr-c (3h ago)")    // MinGap (sole member)
+}
+
+func TestAlignComments_OutlierBetweenGroup(t *testing.T) {
+	// Non-outlier lines on the same side of an outlier group together.
+	a := "aaa: 111"  // 8 chars
+	b := "bb: 22"    // 6 chars
+	long := "this-is-a-very-long-line-that-exceeds-the-outlier-threshold-by-far!!" // 69 chars
+	c := "ccc: 333"  // 8 chars
+	d := "dddd: 4444" // 10 chars
+
+	input := a + " # m1 (1h)\n" + b + " # m2 (2h)\n" + long + " # m3 (3h)\n" + c + " # m4 (4h)\n" + d + " # m5 (5h)\n"
+
+	got := AlignComments(input)
+
+	// a (8) and b (6) form sub-block 1: aligned at max=8+2=10
+	assert.Contains(t, got, "aaa: 111  # m1 (1h)")    // 2 spaces (10-8)
+	assert.Contains(t, got, "bb: 22    # m2 (2h)")    // 4 spaces (10-6)
+	// long is outlier: MinGap
+	assert.Contains(t, got, long+"  # m3 (3h)")
+	// c (8) and d (10) form sub-block 3: aligned at max=10+2=12
+	assert.Contains(t, got, "ccc: 333    # m4 (4h)")  // 4 spaces (12-8)
+	assert.Contains(t, got, "dddd: 4444  # m5 (5h)")  // 2 spaces (12-10)
 }
 
 func TestAlignComments_MixedAnnotatedAndBare(t *testing.T) {
