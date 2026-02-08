@@ -50,18 +50,18 @@ func main() {
 	var mtimeFlagVar mtimeFlag = "relative"
 
 	rootCmd := &cobra.Command{
-		Use:   "kubectl-fields",
+		Use:   "kubectl fields",
 		Short: "Annotate Kubernetes YAML with field ownership information",
-		Long: `kubectl-fields reads Kubernetes resource YAML from stdin, annotates each
+		Long: `kubectl fields reads Kubernetes resource YAML from stdin, annotates each
 managed field with its owner (manager name and timestamp), and writes the
 annotated YAML to stdout.
 
 Usage:
-  kubectl get deploy nginx -o yaml --show-managed-fields | kubectl-fields
-  kubectl get deploy nginx -o yaml --show-managed-fields | kubectl-fields --color always
-  kubectl get deploy nginx -o yaml --show-managed-fields | kubectl-fields --mtime hide
-  kubectl get deploy -o yaml --show-managed-fields | kubectl-fields --above
-  kubectl get deploy nginx -o yaml --show-managed-fields | kubectl-fields --show-operation
+  kubectl get deploy nginx -o yaml --show-managed-fields | kubectl fields
+  kubectl get deploy nginx -o yaml --show-managed-fields | kubectl fields --color always
+  kubectl get deploy nginx -o yaml --show-managed-fields | kubectl fields --mtime hide
+  kubectl get deploy -o yaml --show-managed-fields | kubectl fields --above
+  kubectl get deploy nginx -o yaml --show-managed-fields | kubectl fields --show-operation
 
 The tool processes managedFields metadata to show who owns each field
 and when it was last updated, making field ownership visible without
@@ -118,7 +118,11 @@ reading raw managedFields JSON.`,
 			}
 
 			if !foundManagedFields {
-				fmt.Fprintln(os.Stderr, "Warning: no managedFields found. Did you use --show-managed-fields?")
+				msg := "Warning: no managedFields found. Did you use --show-managed-fields?"
+				if term.IsTerminal(int(os.Stderr.Fd())) {
+					msg = "\x1b[33m" + msg + "\x1b[0m" // orange/yellow
+				}
+				fmt.Fprintln(os.Stderr, msg)
 			}
 
 			// Encode YAML to buffer, then post-process (align + colorize).
