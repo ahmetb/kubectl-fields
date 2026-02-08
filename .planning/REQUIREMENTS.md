@@ -136,7 +136,7 @@ Palette of 8-16 distinct ANSI colors for manager names (not single-color like pr
 | REQ-021 | Manager name shortening | P2 | Phase 4 | Pending |
 | REQ-022 | Color palette variety | P1 | Phase 3 | Complete |
 | REQ-023 | --managers filter | P2 | Phase 4 | Pending |
-| REQ-024 | Operation type display | P2 | Phase 4 | Pending |
+| REQ-024 | Operation type display | P2 | Phase 4 | Complete |
 
 ---
 *Generated: 2026-02-07 from FEATURES.md research*

@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Foundation + Input Pipeline** - Parse stdin YAML, extract and strip managedFields, validate round-trip fidelity
 - [x] **Phase 2: Annotation Engine** - Parallel descent algorithm matching FieldsV1 ownership to YAML nodes with comment injection
 - [x] **Phase 3: Output Polish + Color** - Color system, comment alignment, timestamp/display flags
-- [ ] **Phase 4: Extended Features** - Manager filtering, name shortening, operation type display
+- [x] **Phase 4: Extended Features** - Manager filtering, name shortening, operation type display
 
 ## Phase Details
 
@@ -76,7 +76,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 04-01-PLAN.md -- Add Operation to AnnotationInfo, extend formatComment with showOperation, wire --show-operation CLI flag, golden files
+- [x] 04-01-PLAN.md -- Add Operation to AnnotationInfo, extend formatComment with showOperation, wire --show-operation CLI flag, golden files
 
 ## Progress
 
@@ -88,4 +88,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 | 1. Foundation + Input Pipeline | 2/2 | Complete | 2026-02-07 |
 | 2. Annotation Engine | 2/2 | Complete | 2026-02-08 |
 | 3. Output Polish + Color | 2/2 | Complete | 2026-02-08 |
-| 4. Extended Features | 0/1 | Not started | - |
+| 4. Extended Features | 1/1 | Complete | 2026-02-07 |
