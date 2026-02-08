@@ -61,6 +61,7 @@ Usage:
   kubectl get deploy nginx -o yaml --show-managed-fields | kubectl-fields --color always
   kubectl get deploy nginx -o yaml --show-managed-fields | kubectl-fields --mtime hide
   kubectl get deploy -o yaml --show-managed-fields | kubectl-fields --above
+  kubectl get deploy nginx -o yaml --show-managed-fields | kubectl-fields --show-operation
 
 The tool processes managedFields metadata to show who owns each field
 and when it was last updated, making field ownership visible without
@@ -69,6 +70,7 @@ reading raw managedFields JSON.`,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			aboveMode, _ := cmd.Flags().GetBool("above")
+			showOperation, _ := cmd.Flags().GetBool("show-operation")
 
 			// Resolve color mode: auto detects TTY, always/never override.
 			colorEnabled := output.ResolveColor(string(colorFlagVar), term.IsTerminal(int(os.Stdout.Fd())))
@@ -104,9 +106,10 @@ reading raw managedFields JSON.`,
 				// Annotate owned fields with ownership comments.
 				if len(entries) > 0 {
 					annotate.Annotate(root, entries, annotate.Options{
-						Above: aboveMode,
-						Now:   time.Now(),
-						Mtime: annotate.MtimeMode(mtimeFlagVar),
+						Above:         aboveMode,
+						Now:           time.Now(),
+						Mtime:         annotate.MtimeMode(mtimeFlagVar),
+						ShowOperation: showOperation,
 					})
 				}
 
@@ -131,6 +134,7 @@ reading raw managedFields JSON.`,
 	}
 
 	rootCmd.Flags().Bool("above", false, "Place annotations on the line above each field instead of inline")
+	rootCmd.Flags().Bool("show-operation", false, "Include operation type (apply, update) in annotations")
 	rootCmd.Flags().Var(&colorFlagVar, "color", "Color output: auto, always, never")
 	rootCmd.Flags().Var(&mtimeFlagVar, "mtime", "Timestamp display: relative, absolute, hide")
 

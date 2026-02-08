@@ -544,7 +544,7 @@ func TestAnnotate_MtimeEmptyDefaultsRelative(t *testing.T) {
 
 // processDeploymentFixture reads the deployment YAML, parses, extracts managedFields,
 // annotates, strips managedFields, and encodes. Returns the output string.
-func processDeploymentFixture(t *testing.T, above bool, fixedNow time.Time) string {
+func processDeploymentFixture(t *testing.T, above bool, showOperation bool, fixedNow time.Time) string {
 	t.Helper()
 
 	inputData, err := os.ReadFile("../../testdata/1_deployment.yaml")
@@ -564,8 +564,9 @@ func processDeploymentFixture(t *testing.T, above bool, fixedNow time.Time) stri
 	require.NotEmpty(t, entries, "expected managedFields entries")
 
 	Annotate(root, entries, Options{
-		Above: above,
-		Now:   fixedNow,
+		Above:         above,
+		Now:           fixedNow,
+		ShowOperation: showOperation,
 	})
 
 	managed.StripManagedFields(root)
@@ -586,7 +587,7 @@ func TestAnnotate_GoldenInline(t *testing.T) {
 	// finalizerpatcher: 2024-04-10T00:35:29Z -> 59m21s ago
 	fixedNow := time.Date(2024, 4, 10, 1, 34, 50, 0, time.UTC)
 
-	got := processDeploymentFixture(t, false, fixedNow)
+	got := processDeploymentFixture(t, false, false, fixedNow)
 
 	goldenPath := "../../testdata/1_deployment_inline.out"
 	if updateGolden {
@@ -610,7 +611,7 @@ func TestAnnotate_GoldenAbove(t *testing.T) {
 	// finalizerpatcher: 2024-04-10T00:35:29Z -> 17h4m ago (seconds dropped in hours range)
 	fixedNow := time.Date(2024, 4, 10, 17, 39, 50, 0, time.UTC)
 
-	got := processDeploymentFixture(t, true, fixedNow)
+	got := processDeploymentFixture(t, true, false, fixedNow)
 
 	goldenPath := "../../testdata/1_deployment_above.out"
 	if updateGolden {
@@ -625,6 +626,48 @@ func TestAnnotate_GoldenAbove(t *testing.T) {
 	expected := string(expectedData)
 
 	assert.Equal(t, expected, got, "above golden file mismatch")
+}
+
+func TestAnnotate_GoldenInlineOperation(t *testing.T) {
+	// Same fixedNow as TestAnnotate_GoldenInline
+	fixedNow := time.Date(2024, 4, 10, 1, 34, 50, 0, time.UTC)
+
+	got := processDeploymentFixture(t, false, true, fixedNow)
+
+	goldenPath := "../../testdata/1_deployment_inline_operation.out"
+	if updateGolden {
+		err := os.WriteFile(goldenPath, []byte(got), 0644)
+		require.NoError(t, err, "updating inline operation golden file")
+		t.Log("Updated inline operation golden file")
+		return
+	}
+
+	expectedData, err := os.ReadFile(goldenPath)
+	require.NoError(t, err, "reading inline operation golden file")
+	expected := string(expectedData)
+
+	assert.Equal(t, expected, got, "inline operation golden file mismatch")
+}
+
+func TestAnnotate_GoldenAboveOperation(t *testing.T) {
+	// Same fixedNow as TestAnnotate_GoldenAbove
+	fixedNow := time.Date(2024, 4, 10, 17, 39, 50, 0, time.UTC)
+
+	got := processDeploymentFixture(t, true, true, fixedNow)
+
+	goldenPath := "../../testdata/1_deployment_above_operation.out"
+	if updateGolden {
+		err := os.WriteFile(goldenPath, []byte(got), 0644)
+		require.NoError(t, err, "updating above operation golden file")
+		t.Log("Updated above operation golden file")
+		return
+	}
+
+	expectedData, err := os.ReadFile(goldenPath)
+	require.NoError(t, err, "reading above operation golden file")
+	expected := string(expectedData)
+
+	assert.Equal(t, expected, got, "above operation golden file mismatch")
 }
 
 func TestAnnotate_NoManagedFields(t *testing.T) {
