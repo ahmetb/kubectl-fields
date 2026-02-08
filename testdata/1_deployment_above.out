@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   # kubectl-client-side-apply (16h55m ago)
   annotations:
-    # kube-controller-manager (/status) (17h5m ago)
+    # kube-controller-manager /status (17h5m ago)
     deployment.kubernetes.io/revision: "2"
     # kubectl-client-side-apply (16h55m ago)
     kubectl.kubernetes.io/last-applied-configuration: |
@@ -89,41 +89,41 @@ spec:
       # kubectl-client-side-apply (16h55m ago)
       terminationGracePeriodSeconds: 30
 status:
-  # kube-controller-manager (/status) (17h5m ago)
+  # kube-controller-manager /status (17h5m ago)
   availableReplicas: 3
-  # kube-controller-manager (/status) (17h5m ago)
+  # kube-controller-manager /status (17h5m ago)
   conditions:
-  # kube-controller-manager (/status) (17h5m ago)
-  - # kube-controller-manager (/status) (17h5m ago)
+  # kube-controller-manager /status (17h5m ago)
+  - # kube-controller-manager /status (17h5m ago)
     lastTransitionTime: "2024-04-10T00:34:50Z"
-    # kube-controller-manager (/status) (17h5m ago)
+    # kube-controller-manager /status (17h5m ago)
     lastUpdateTime: "2024-04-10T00:34:50Z"
-    # kube-controller-manager (/status) (17h5m ago)
+    # kube-controller-manager /status (17h5m ago)
     message: Deployment has minimum availability.
-    # kube-controller-manager (/status) (17h5m ago)
+    # kube-controller-manager /status (17h5m ago)
     reason: MinimumReplicasAvailable
-    # kube-controller-manager (/status) (17h5m ago)
+    # kube-controller-manager /status (17h5m ago)
     status: "True"
-    # kube-controller-manager (/status) (17h5m ago)
+    # kube-controller-manager /status (17h5m ago)
     type: Available
-  # kube-controller-manager (/status) (17h5m ago)
-  - # kube-controller-manager (/status) (17h5m ago)
+  # kube-controller-manager /status (17h5m ago)
+  - # kube-controller-manager /status (17h5m ago)
     lastTransitionTime: "2024-04-10T00:34:49Z"
-    # kube-controller-manager (/status) (17h5m ago)
+    # kube-controller-manager /status (17h5m ago)
     lastUpdateTime: "2024-04-10T00:35:14Z"
-    # kube-controller-manager (/status) (17h5m ago)
+    # kube-controller-manager /status (17h5m ago)
     message: ReplicaSet "nginx-deployment-779d59bcb" has successfully progressed.
-    # kube-controller-manager (/status) (17h5m ago)
+    # kube-controller-manager /status (17h5m ago)
     reason: NewReplicaSetAvailable
-    # kube-controller-manager (/status) (17h5m ago)
+    # kube-controller-manager /status (17h5m ago)
     status: "True"
-    # kube-controller-manager (/status) (17h5m ago)
+    # kube-controller-manager /status (17h5m ago)
     type: Progressing
-  # kube-controller-manager (/status) (17h5m ago)
+  # kube-controller-manager /status (17h5m ago)
   observedGeneration: 2
-  # kube-controller-manager (/status) (17h5m ago)
+  # kube-controller-manager /status (17h5m ago)
   readyReplicas: 3
-  # kube-controller-manager (/status) (17h5m ago)
+  # kube-controller-manager /status (17h5m ago)
   replicas: 3
-  # kube-controller-manager (/status) (17h5m ago)
+  # kube-controller-manager /status (17h5m ago)
   updatedReplicas: 3

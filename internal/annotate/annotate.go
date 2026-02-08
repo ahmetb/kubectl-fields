@@ -9,10 +9,33 @@ import (
 	"go.yaml.in/yaml/v3"
 )
 
+// MtimeMode controls how modification timestamps are rendered in comments.
+type MtimeMode string
+
+const (
+	// MtimeRelative shows relative age like "2h15m ago".
+	MtimeRelative MtimeMode = "relative"
+
+	// MtimeAbsolute shows ISO 8601 timestamps like "2026-02-07T12:00:00Z".
+	MtimeAbsolute MtimeMode = "absolute"
+
+	// MtimeHide omits timestamps entirely.
+	MtimeHide MtimeMode = "hide"
+)
+
 // Options configures annotation behaviour.
 type Options struct {
 	Above bool      // true = HeadComment above field key, false = LineComment inline
 	Now   time.Time // current time for relative timestamps (enables deterministic tests)
+	Mtime MtimeMode // timestamp display mode (default empty string treated as relative)
+}
+
+// effectiveMtime returns the effective mtime mode, treating empty string as relative.
+func (o Options) effectiveMtime() MtimeMode {
+	if o.Mtime == "" {
+		return MtimeRelative
+	}
+	return o.Mtime
 }
 
 // Annotate injects ownership comments into a YAML resource tree based on
@@ -35,9 +58,11 @@ func Annotate(root *yaml.Node, entries []managed.ManagedFieldsEntry, opts Option
 		walkFieldsV1(root, nil, entry.FieldsV1, entry, targets)
 	}
 
+	mtime := opts.effectiveMtime()
+
 	// Pass 2 -- Inject comments.
 	for _, target := range targets {
-		comment := formatComment(target.Info, opts.Now)
+		comment := formatComment(target.Info, opts.Now, mtime)
 		injectComment(target, comment, opts.Above)
 	}
 }
@@ -113,13 +138,30 @@ func isFlowEmpty(node *yaml.Node) bool {
 }
 
 // formatComment builds the annotation string for a field.
-// Format: "manager (age)" or "manager (/subresource) (age)".
+//
+// Format varies by mtime mode:
+//
+//	relative: "manager /sub (2h15m ago)" or "manager (2h15m ago)"
+//	absolute: "manager /sub (2026-02-07T12:00:00Z)" or "manager (2026-02-07T12:00:00Z)"
+//	hide:     "manager /sub" or "manager"
+//
 // The returned string does NOT include the "# " prefix -- go-yaml adds that
 // automatically when encoding HeadComment or LineComment.
-func formatComment(info AnnotationInfo, now time.Time) string {
-	age := timeutil.FormatRelativeTime(now, info.Time)
+func formatComment(info AnnotationInfo, now time.Time, mtime MtimeMode) string {
+	var base string
 	if info.Subresource != "" {
-		return fmt.Sprintf("%s (/%s) (%s)", info.Manager, info.Subresource, age)
+		base = fmt.Sprintf("%s /%s", info.Manager, info.Subresource)
+	} else {
+		base = info.Manager
 	}
-	return fmt.Sprintf("%s (%s)", info.Manager, age)
+
+	switch mtime {
+	case MtimeAbsolute:
+		return fmt.Sprintf("%s (%s)", base, info.Time.UTC().Format(time.RFC3339))
+	case MtimeHide:
+		return base
+	default: // MtimeRelative or empty
+		age := timeutil.FormatRelativeTime(now, info.Time)
+		return fmt.Sprintf("%s (%s)", base, age)
+	}
 }

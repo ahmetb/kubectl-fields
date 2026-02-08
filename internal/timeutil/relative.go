@@ -5,8 +5,14 @@ import (
 	"time"
 )
 
-// FormatRelativeTime returns a human-readable relative time string
-// describing the duration between now and then, such as "5m ago" or "3d ago".
+// FormatRelativeTime returns a human-readable relative time string with
+// two-unit granularity, such as "5d12h ago" or "2w3d ago".
+//
+// Units extracted in order: years (365d), months (30d), weeks (7d), days,
+// hours, minutes, seconds. The two largest non-zero units are concatenated.
+// If only one unit is non-zero, a single unit is shown (e.g., "5d ago").
+//
+// Edge cases: 0 seconds -> "0s ago", future timestamps -> "just now".
 func FormatRelativeTime(now, then time.Time) string {
 	d := now.Sub(then)
 
@@ -17,45 +23,59 @@ func FormatRelativeTime(now, then time.Time) string {
 
 	totalSeconds := int(d.Seconds())
 
-	// Less than 60 seconds
-	if totalSeconds < 60 {
-		return fmt.Sprintf("%ds ago", totalSeconds)
+	// Decompose into units from largest to smallest
+	years := totalSeconds / (365 * 24 * 3600)
+	totalSeconds -= years * 365 * 24 * 3600
+
+	months := totalSeconds / (30 * 24 * 3600)
+	totalSeconds -= months * 30 * 24 * 3600
+
+	weeks := totalSeconds / (7 * 24 * 3600)
+	totalSeconds -= weeks * 7 * 24 * 3600
+
+	days := totalSeconds / (24 * 3600)
+	totalSeconds -= days * 24 * 3600
+
+	hours := totalSeconds / 3600
+	totalSeconds -= hours * 3600
+
+	minutes := totalSeconds / 60
+	totalSeconds -= minutes * 60
+
+	seconds := totalSeconds
+
+	// Build ordered list of (value, suffix) pairs
+	units := []struct {
+		val    int
+		suffix string
+	}{
+		{years, "y"},
+		{months, "mo"},
+		{weeks, "w"},
+		{days, "d"},
+		{hours, "h"},
+		{minutes, "m"},
+		{seconds, "s"},
 	}
 
-	// Less than 1 hour
-	totalMinutes := int(d.Minutes())
-	if totalMinutes < 60 {
-		secs := totalSeconds - totalMinutes*60
-		if secs > 0 {
-			return fmt.Sprintf("%dm%ds ago", totalMinutes, secs)
+	// Collect the first two non-zero units
+	var parts []string
+	for _, u := range units {
+		if u.val > 0 {
+			parts = append(parts, fmt.Sprintf("%d%s", u.val, u.suffix))
+			if len(parts) == 2 {
+				break
+			}
 		}
-		return fmt.Sprintf("%dm ago", totalMinutes)
 	}
 
-	// Less than 24 hours
-	totalHours := int(d.Hours())
-	if totalHours < 24 {
-		mins := totalMinutes - totalHours*60
-		if mins > 0 {
-			return fmt.Sprintf("%dh%dm ago", totalHours, mins)
-		}
-		return fmt.Sprintf("%dh ago", totalHours)
+	if len(parts) == 0 {
+		return "0s ago"
 	}
 
-	totalDays := totalHours / 24
-
-	// Less than 30 days
-	if totalDays < 30 {
-		return fmt.Sprintf("%dd ago", totalDays)
+	result := ""
+	for _, p := range parts {
+		result += p
 	}
-
-	// Less than 365 days
-	if totalDays < 365 {
-		months := totalDays / 30
-		return fmt.Sprintf("%dmo ago", months)
-	}
-
-	// 365+ days
-	years := totalDays / 365
-	return fmt.Sprintf("%dy ago", years)
+	return result + " ago"
 }

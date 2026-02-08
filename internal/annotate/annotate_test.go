@@ -23,7 +23,7 @@ func TestFormatComment_Basic(t *testing.T) {
 		Manager: "kubectl-client-side-apply",
 		Time:    testNow.Add(-50 * time.Minute),
 	}
-	got := formatComment(info, testNow)
+	got := formatComment(info, testNow, MtimeRelative)
 	assert.Equal(t, "kubectl-client-side-apply (50m ago)", got)
 }
 
@@ -33,8 +33,9 @@ func TestFormatComment_WithSubresource(t *testing.T) {
 		Subresource: "status",
 		Time:        testNow.Add(-1 * time.Hour),
 	}
-	got := formatComment(info, testNow)
-	assert.Equal(t, "kube-controller-manager (/status) (1h ago)", got)
+	got := formatComment(info, testNow, MtimeRelative)
+	// New format: space + slash, no parentheses around subresource
+	assert.Equal(t, "kube-controller-manager /status (1h ago)", got)
 }
 
 func TestFormatComment_NoSubresource(t *testing.T) {
@@ -42,9 +43,59 @@ func TestFormatComment_NoSubresource(t *testing.T) {
 		Manager: "helm",
 		Time:    testNow.Add(-3 * time.Hour),
 	}
-	got := formatComment(info, testNow)
+	got := formatComment(info, testNow, MtimeRelative)
 	assert.Equal(t, "helm (3h ago)", got)
 	assert.NotContains(t, got, "/")
+}
+
+func TestFormatComment_AbsoluteMode(t *testing.T) {
+	ts := time.Date(2026, 2, 7, 12, 0, 0, 0, time.UTC)
+	info := AnnotationInfo{
+		Manager: "kubectl-apply",
+		Time:    ts,
+	}
+	got := formatComment(info, testNow, MtimeAbsolute)
+	assert.Equal(t, "kubectl-apply (2026-02-07T12:00:00Z)", got)
+}
+
+func TestFormatComment_AbsoluteModeWithSubresource(t *testing.T) {
+	ts := time.Date(2026, 2, 7, 12, 0, 0, 0, time.UTC)
+	info := AnnotationInfo{
+		Manager:     "kube-controller-manager",
+		Subresource: "status",
+		Time:        ts,
+	}
+	got := formatComment(info, testNow, MtimeAbsolute)
+	assert.Equal(t, "kube-controller-manager /status (2026-02-07T12:00:00Z)", got)
+}
+
+func TestFormatComment_HideMode(t *testing.T) {
+	info := AnnotationInfo{
+		Manager: "kubectl-apply",
+		Time:    testNow.Add(-5 * time.Minute),
+	}
+	got := formatComment(info, testNow, MtimeHide)
+	assert.Equal(t, "kubectl-apply", got)
+}
+
+func TestFormatComment_HideModeWithSubresource(t *testing.T) {
+	info := AnnotationInfo{
+		Manager:     "kube-controller-manager",
+		Subresource: "status",
+		Time:        testNow.Add(-5 * time.Minute),
+	}
+	got := formatComment(info, testNow, MtimeHide)
+	assert.Equal(t, "kube-controller-manager /status", got)
+}
+
+func TestFormatComment_EmptyMtimeDefaultsToRelative(t *testing.T) {
+	info := AnnotationInfo{
+		Manager: "helm",
+		Time:    testNow.Add(-2 * time.Hour),
+	}
+	// Empty string for mtime should behave as relative
+	got := formatComment(info, testNow, "")
+	assert.Equal(t, "helm (2h ago)", got)
 }
 
 // --- Annotate integration tests ---
@@ -176,8 +227,9 @@ func TestAnnotate_SubresourceInComment(t *testing.T) {
 	Annotate(root, entries, Options{Now: testNow})
 	output := encodeYAML(t, root)
 
-	assert.Contains(t, output, "(/status)")
-	assert.Contains(t, output, "kube-controller-manager (/status) (1h ago)")
+	// New format: space + slash, no parentheses around subresource
+	assert.Contains(t, output, "/status")
+	assert.Contains(t, output, "kube-controller-manager /status (1h ago)")
 }
 
 func TestAnnotate_MultipleManagers(t *testing.T) {
@@ -359,6 +411,67 @@ func TestAnnotate_AboveListItemByKey(t *testing.T) {
 	}
 	assert.True(t, foundItemComment, "k: item should have above comment")
 	assert.True(t, foundImageComment, "image field should have above comment")
+}
+
+// --- MtimeMode integration tests ---
+
+func TestAnnotate_MtimeAbsolute(t *testing.T) {
+	root := parseYAML(t, "replicas: 3\n")
+
+	fieldTime := time.Date(2026, 2, 7, 12, 30, 0, 0, time.UTC)
+	entries := []managed.ManagedFieldsEntry{
+		{
+			Manager:  "kubectl-apply",
+			Time:     fieldTime,
+			FieldsV1: buildFieldsV1(t, `{"f:replicas":{}}`),
+		},
+	}
+
+	Annotate(root, entries, Options{Now: testNow, Mtime: MtimeAbsolute})
+	output := encodeYAML(t, root)
+
+	assert.Contains(t, output, "replicas: 3 # kubectl-apply (2026-02-07T12:30:00Z)")
+}
+
+func TestAnnotate_MtimeHide(t *testing.T) {
+	root := parseYAML(t, "replicas: 3\n")
+
+	entries := []managed.ManagedFieldsEntry{
+		{
+			Manager:  "kubectl-apply",
+			Time:     testNow.Add(-5 * time.Minute),
+			FieldsV1: buildFieldsV1(t, `{"f:replicas":{}}`),
+		},
+	}
+
+	Annotate(root, entries, Options{Now: testNow, Mtime: MtimeHide})
+	output := encodeYAML(t, root)
+
+	assert.Contains(t, output, "replicas: 3 # kubectl-apply")
+	// Should not contain any age or timestamp in parentheses
+	for _, line := range strings.Split(output, "\n") {
+		if strings.Contains(line, "replicas") {
+			assert.NotContains(t, line, "(")
+		}
+	}
+}
+
+func TestAnnotate_MtimeEmptyDefaultsRelative(t *testing.T) {
+	root := parseYAML(t, "replicas: 3\n")
+
+	entries := []managed.ManagedFieldsEntry{
+		{
+			Manager:  "kubectl-apply",
+			Time:     testNow.Add(-10 * time.Minute),
+			FieldsV1: buildFieldsV1(t, `{"f:replicas":{}}`),
+		},
+	}
+
+	// Empty Mtime should default to relative
+	Annotate(root, entries, Options{Now: testNow})
+	output := encodeYAML(t, root)
+
+	assert.Contains(t, output, "replicas: 3 # kubectl-apply (10m ago)")
 }
 
 // --- Golden file tests ---
