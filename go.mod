@@ -1,4 +1,4 @@
-module github.com/rewanthtammana/kubectl-fields
+module github.com/ahmetb/kubectl-fields
 
 go 1.25.6
 

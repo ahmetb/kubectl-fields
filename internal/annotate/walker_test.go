@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rewanthtammana/kubectl-fields/internal/managed"
+	"github.com/ahmetb/kubectl-fields/internal/managed"
 	"github.com/stretchr/testify/assert"
 	"go.yaml.in/yaml/v3"
 )

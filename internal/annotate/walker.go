@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/rewanthtammana/kubectl-fields/internal/managed"
+	"github.com/ahmetb/kubectl-fields/internal/managed"
 	"go.yaml.in/yaml/v3"
 )
 

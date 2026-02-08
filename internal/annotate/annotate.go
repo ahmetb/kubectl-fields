@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rewanthtammana/kubectl-fields/internal/managed"
-	"github.com/rewanthtammana/kubectl-fields/internal/timeutil"
+	"github.com/ahmetb/kubectl-fields/internal/managed"
+	"github.com/ahmetb/kubectl-fields/internal/timeutil"
 	"go.yaml.in/yaml/v3"
 )
 
