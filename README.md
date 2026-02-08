@@ -1,9 +1,10 @@
 # kubectl-fields
 
-`kubectl-fields` is a `kubectl` plugin that annotates Kubernetes manifests with the last manager of each field.
+`kubectl-fields` is a `kubectl` plugin that annotates Kubernetes YAML object
+outputs with the manager of each field.
 
-This helps you understand which controller is managing which part of your Kubernetes objects.
-
+This helps you understand which controller is managing which part of your
+Kubernetes objects, and understand effects of server-side apply.
 
 ## Usage
 
@@ -13,29 +14,31 @@ Pipe the output of `kubectl get -o yaml --show-managed-fields` to `kubectl-field
 kubectl get deploy/my-app -o yaml --show-managed-fields | kubectl fields
 ```
 
-### Example
+### Example Output
 
-Here's an example of the output for a Deployment object:
+[![](./img/screenshot-1.png)](./img/screenshot-1.png)
+[![](./img/screenshot-2.png)](./img/screenshot-2.png)
 
-```yaml
-apiVersion: apps/v1 # kube-controller-manager (2y ago)
-kind: Deployment # kube-controller-manager (2y ago)
-metadata: # kube-apiserver (2y ago)
-  name: my-app # kube-apiserver (2y ago)
-  namespace: default # kube-apiserver (2y ago)
-spec: # kube-controller-manager (2y ago)
-  replicas: 1 # kube-apiserver (2y ago)
-  selector: # kube-controller-manager (2y ago)
-    matchLabels: # kube-controller-manager (2y ago)
-      app: my-app # kube-controller-manager (2y ago)
-  template: # kube-controller-manager (2y ago)
-    metadata: # kube-controller-manager (2y ago)
-      labels: # kube-controller-manager (2y ago)
-        app: my-app # kube-controller-manager (2y ago)
-    spec: # kube-controller-manager (2y ago)
-      containers: # kube-controller-manager (2y ago)
-      - name: my-app # kube-controller-manager (2y ago)
-        image: nginx # kube-apiserver (2y ago)
+## Installation
+
+For now, get this tool via:
+
+```
+go install github.com/ahmetb/kubectl-fields/cmd/kubectl-fields@latest
 ```
 
-As you can see, `kubectl-fields` annotates each field with the controller that last modified it, along with a relative timestamp of when the change was made. This provides valuable insight into how your Kubernetes objects are being managed.
+and ensure your GOBIN directory (typically ~/go/bin) is in your `$PATH`.
+
+## Features
+
+- Display separate color for each field manager.
+- Can handle multiple YAML documents or `List` results from kubectl output.
+- Use `--above` to add annotations above the fields instead of inline
+- Vertical alignment of YAML comments (the tool still generates valid YAML output)
+- Use `--mtime=relative|absolute|hide` to show when the field was edited
+- Use `--show-operation` to also display if it was a `Patch` or `Apply` operation.
+
+## Development
+
+Use [GSD](https://github.com/glittercowboy/get-shit-done) to develop this
+project and have it reuse existing context/design docs checked into the repo.
