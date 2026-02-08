@@ -2,11 +2,13 @@ package annotate
 
 import (
 	"bytes"
+	"os"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/rewanthtammana/kubectl-fields/internal/managed"
+	"github.com/rewanthtammana/kubectl-fields/internal/parser"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.yaml.in/yaml/v3"
@@ -357,6 +359,112 @@ func TestAnnotate_AboveListItemByKey(t *testing.T) {
 	}
 	assert.True(t, foundItemComment, "k: item should have above comment")
 	assert.True(t, foundImageComment, "image field should have above comment")
+}
+
+// --- Golden file tests ---
+
+// processDeploymentFixture reads the deployment YAML, parses, extracts managedFields,
+// annotates, strips managedFields, and encodes. Returns the output string.
+func processDeploymentFixture(t *testing.T, above bool, fixedNow time.Time) string {
+	t.Helper()
+
+	inputData, err := os.ReadFile("../../testdata/1_deployment.yaml")
+	require.NoError(t, err, "reading deployment fixture")
+
+	docs, err := parser.ParseDocuments(bytes.NewReader(inputData))
+	require.NoError(t, err, "parsing deployment fixture")
+	require.Len(t, docs, 1, "expected 1 document")
+
+	doc := docs[0]
+	require.Equal(t, yaml.DocumentNode, doc.Kind)
+	require.NotEmpty(t, doc.Content)
+	root := doc.Content[0]
+
+	entries, err := managed.ExtractManagedFields(root)
+	require.NoError(t, err, "extracting managedFields")
+	require.NotEmpty(t, entries, "expected managedFields entries")
+
+	Annotate(root, entries, Options{
+		Above: above,
+		Now:   fixedNow,
+	})
+
+	managed.StripManagedFields(root)
+
+	var buf bytes.Buffer
+	err = parser.EncodeDocuments(&buf, []*yaml.Node{doc})
+	require.NoError(t, err, "encoding annotated YAML")
+
+	return buf.String()
+}
+
+var updateGolden = os.Getenv("UPDATE_GOLDEN") != ""
+
+func TestAnnotate_GoldenInline(t *testing.T) {
+	// fixedNow chosen so timestamps match the golden file:
+	// kubectl-client-side-apply: 2024-04-10T00:44:50Z -> 50m ago
+	// envpatcher/kube-controller-manager: 2024-04-10T00:34:50Z -> 1h ago
+	// finalizerpatcher: 2024-04-10T00:35:29Z -> 59m21s ago
+	fixedNow := time.Date(2024, 4, 10, 1, 34, 50, 0, time.UTC)
+
+	got := processDeploymentFixture(t, false, fixedNow)
+
+	goldenPath := "../../testdata/1_deployment_inline.out"
+	if updateGolden {
+		err := os.WriteFile(goldenPath, []byte(got), 0644)
+		require.NoError(t, err, "updating inline golden file")
+		t.Log("Updated inline golden file")
+		return
+	}
+
+	expectedData, err := os.ReadFile(goldenPath)
+	require.NoError(t, err, "reading inline golden file")
+	expected := string(expectedData)
+
+	assert.Equal(t, expected, got, "inline golden file mismatch")
+}
+
+func TestAnnotate_GoldenAbove(t *testing.T) {
+	// fixedNow chosen so timestamps match the golden file:
+	// kubectl-client-side-apply: 2024-04-10T00:44:50Z -> 16h55m ago
+	// envpatcher/kube-controller-manager: 2024-04-10T00:34:50Z -> 17h5m ago
+	// finalizerpatcher: 2024-04-10T00:35:29Z -> 17h4m ago (seconds dropped in hours range)
+	fixedNow := time.Date(2024, 4, 10, 17, 39, 50, 0, time.UTC)
+
+	got := processDeploymentFixture(t, true, fixedNow)
+
+	goldenPath := "../../testdata/1_deployment_above.out"
+	if updateGolden {
+		err := os.WriteFile(goldenPath, []byte(got), 0644)
+		require.NoError(t, err, "updating above golden file")
+		t.Log("Updated above golden file")
+		return
+	}
+
+	expectedData, err := os.ReadFile(goldenPath)
+	require.NoError(t, err, "reading above golden file")
+	expected := string(expectedData)
+
+	assert.Equal(t, expected, got, "above golden file mismatch")
+}
+
+func TestAnnotate_NoManagedFields(t *testing.T) {
+	root := parseYAML(t, `apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: test
+data:
+  key: value
+`)
+
+	entries := []managed.ManagedFieldsEntry{}
+
+	Annotate(root, entries, Options{Now: testNow})
+	output := encodeYAML(t, root)
+
+	// No managedFields means no annotations at all
+	assert.NotContains(t, output, "#", "no comments should be present when there are no managedFields")
+	assert.Contains(t, output, "key: value", "original data should be preserved")
 }
 
 // --- helpers ---

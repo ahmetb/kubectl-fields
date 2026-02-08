@@ -3,7 +3,9 @@ package main
 import (
 	"fmt"
 	"os"
+	"time"
 
+	"github.com/rewanthtammana/kubectl-fields/internal/annotate"
 	"github.com/rewanthtammana/kubectl-fields/internal/managed"
 	"github.com/rewanthtammana/kubectl-fields/internal/parser"
 	"github.com/spf13/cobra"
@@ -19,8 +21,9 @@ managed field with its owner (manager name and timestamp), and writes the
 annotated YAML to stdout.
 
 Usage:
-  kubectl get deploy nginx -o yaml | kubectl-fields
-  kubectl get pods -o yaml | kubectl-fields
+  kubectl get deploy nginx -o yaml --show-managed-fields | kubectl-fields
+  kubectl get pods -o yaml --show-managed-fields | kubectl-fields
+  kubectl get deploy -o yaml --show-managed-fields | kubectl-fields --above
 
 The tool processes managedFields metadata to show who owns each field
 and when it was last updated, making field ownership visible without
@@ -28,6 +31,8 @@ reading raw managedFields JSON.`,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			aboveMode, _ := cmd.Flags().GetBool("above")
+
 			docs, err := parser.ParseDocuments(os.Stdin)
 			if err != nil {
 				return err
@@ -39,7 +44,7 @@ reading raw managedFields JSON.`,
 				allDocs = append(allDocs, parser.UnwrapListKind(doc)...)
 			}
 
-			// Extract and strip managedFields from each resource.
+			// Extract managedFields, annotate fields, then strip managedFields.
 			foundManagedFields := false
 			for _, doc := range allDocs {
 				if doc.Kind != yaml.DocumentNode || len(doc.Content) == 0 {
@@ -47,7 +52,6 @@ reading raw managedFields JSON.`,
 				}
 				root := doc.Content[0]
 
-				// Extract managedFields entries (stored for Phase 2 annotation).
 				entries, err := managed.ExtractManagedFields(root)
 				if err != nil {
 					return fmt.Errorf("extracting managedFields: %w", err)
@@ -55,8 +59,14 @@ reading raw managedFields JSON.`,
 				if len(entries) > 0 {
 					foundManagedFields = true
 				}
-				// TODO(phase2): use entries for field annotation
-				_ = entries
+
+				// Annotate owned fields with ownership comments.
+				if len(entries) > 0 {
+					annotate.Annotate(root, entries, annotate.Options{
+						Above: aboveMode,
+						Now:   time.Now(),
+					})
+				}
 
 				// Strip managedFields from the YAML tree.
 				managed.StripManagedFields(root)
@@ -73,6 +83,8 @@ reading raw managedFields JSON.`,
 			return nil
 		},
 	}
+
+	rootCmd.Flags().Bool("above", false, "Place annotations on the line above each field instead of inline")
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
