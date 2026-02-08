@@ -10,40 +10,39 @@ Instantly see who or what manages every field in a Kubernetes resource, and when
 
 ## Requirements
 
-### Validated
+### Validated (v1.0)
 
-(None yet — ship to validate)
+**Core (P0) -- All Complete:**
+- [x] Parse Kubernetes YAML from stdin (single objects, List kind, multi-document)
+- [x] Parse `managedFields` FieldsV1 format (`f:`, `k:`, `v:` prefix notation) and correlate to actual YAML paths
+- [x] Inline mode (default): append `# manager-name (age)` comment at end of each managed line
+- [x] Above mode (`--above`): place `# manager-name (age)` comment on the line above each managed field
+- [x] Show subresource in annotation when present (e.g., `/status`)
+- [x] Leave unmanaged fields bare (no annotation)
+- [x] Strip `managedFields` section from output
+- [x] Human-readable relative timestamps (e.g., "5m ago", "3h10m ago", "2d ago")
+- [x] Output must be valid YAML (comments are valid YAML, structure preserved)
 
-### Active (v1 — all features)
+**Flags & Color (P1) -- All Complete:**
+- [x] `--mtime absolute` flag for absolute timestamps instead of relative
+- [x] `--mtime hide` flag to hide timestamps and show only manager names
+- [x] Color output: each manager name gets a distinct color when stdout is a TTY (8-color palette)
+- [x] `--color auto/always/never` tri-state flag
+- [x] Per-manager color via round-robin palette assignment
+- [x] Comment alignment across adjacent lines with outlier-aware block splitting
+- [x] Graceful handling of missing managedFields (output unchanged + stderr warning with color)
 
-**Core (P0):**
-- [ ] Parse Kubernetes YAML from stdin (single objects, List kind, multi-document)
-- [ ] Parse `managedFields` FieldsV1 format (`f:`, `k:`, `v:` prefix notation) and correlate to actual YAML paths
-- [ ] Inline mode (default): append `# manager-name (age)` comment at end of each managed line
-- [ ] Above mode (`--above`): place `# manager-name (age)` comment on the line above each managed field
-- [ ] Show subresource in annotation when present (e.g., `(/status)`)
-- [ ] Leave unmanaged fields bare (no annotation)
-- [ ] Strip `managedFields` section from output
-- [ ] Human-readable relative timestamps (e.g., "5m ago", "3h10m ago", "2d ago")
-- [ ] Output must be valid YAML (comments are valid YAML, structure preserved)
-
-**Flags & Color (P1):**
-- [ ] `--absolute-time` flag for absolute timestamps instead of relative
-- [ ] `--no-time` flag to hide timestamps and show only manager names
-- [ ] Color output: each manager name gets a distinct color when stdout is a TTY (8-16 color palette)
-- [ ] `--color auto/always/never` tri-state flag
-- [ ] Per-manager deterministic color (hash-based, consistent across invocations)
-- [ ] Comment alignment across adjacent lines
-- [ ] Graceful handling of missing managedFields (output unchanged + stderr warning)
-
-**Extended (P2):**
-- [ ] `--short-names` flag for common manager name shortening
-- [ ] `--managers=name1,name2` filter flag
-- [ ] `--show-operation` flag for Apply/Update display
+**Extended (P2) -- Partial:**
+- [x] `--show-operation` flag for Apply/Update display
 
 **Quality:**
-- [ ] Comprehensive unit tests covering parsing, annotation, edge cases
-- [ ] No live cluster access — tool only processes YAML from stdin
+- [x] Comprehensive unit tests covering parsing, annotation, edge cases
+- [x] No live cluster access — tool only processes YAML from stdin
+
+### Backlog
+
+- [ ] `--short-names` flag for common manager name shortening (REQ-021, P2)
+- [ ] `--managers=name1,name2` filter flag (REQ-023, P2)
 
 ### Out of Scope
 
@@ -71,17 +70,22 @@ Instantly see who or what manages every field in a Kubernetes resource, and when
 - **Language**: Go — standard for kubectl plugins and Kubernetes ecosystem tooling
 - **Distribution**: Must work as a kubectl plugin (binary named `kubectl-fields` in PATH)
 - **Testing**: No live cluster access in tests. Use fixture YAML files for all test cases.
-- **Dependencies**: Keep minimal. Standard library + a YAML library (likely `gopkg.in/yaml.v3` for node-level access with comments)
+- **Dependencies**: Keep minimal. Standard library + a YAML library (go.yaml.in/yaml/v3 for node-level access with comments)
 
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Stdin-only input | Simplicity; fits kubectl pipe workflow naturally | — Pending |
-| Go as language | Kubectl plugin convention, single binary distribution, ecosystem alignment | — Pending |
-| Strip managedFields from output | Info is now in annotations; raw block is noise | — Pending |
-| Comments for annotations | Preserves valid YAML; parsers ignore comments | — Pending |
-| One manager per field assumption | Kubernetes managed fields guarantee single ownership per field | — Pending |
+| Stdin-only input | Simplicity; fits kubectl pipe workflow naturally | Validated in v1.0 |
+| Go as language | Kubectl plugin convention, single binary distribution, ecosystem alignment | Validated in v1.0 |
+| Strip managedFields from output | Info is now in annotations; raw block is noise | Validated in v1.0 |
+| Comments for annotations | Preserves valid YAML; parsers ignore comments | Validated in v1.0 |
+| One manager per field assumption | Kubernetes managed fields guarantee single ownership per field | Validated in v1.0 |
+| go.yaml.in/yaml/v3 (official fork) | Not archived gopkg.in/yaml.v3; SetIndent(2)+CompactSeqIndent() for round-trip fidelity | Validated in v1.0 |
+| Parallel descent algorithm | Walk FieldsV1 + YAML trees simultaneously; avoids path-string intermediary | Validated in v1.0 |
+| Two-pass collect-then-inject | Targets map keyed by ValueNode pointer; natural last-writer-wins | Validated in v1.0 |
+| Round-robin color assignment | FNV-1a hash clustered common k8s manager names; round-robin gives distinct colors | Fixed in UAT, validated |
+| Outlier-aware alignment | 40-char threshold prevents long lines from pushing all adjacent comments right | Fixed in UAT, validated |
 
 ---
-*Last updated: 2026-02-07 after requirements scoping*
+*Last updated: 2026-02-08 after v1.0 milestone completion*
