@@ -1,18 +1,54 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"time"
 
 	"github.com/rewanthtammana/kubectl-fields/internal/annotate"
 	"github.com/rewanthtammana/kubectl-fields/internal/managed"
+	"github.com/rewanthtammana/kubectl-fields/internal/output"
 	"github.com/rewanthtammana/kubectl-fields/internal/parser"
 	"github.com/spf13/cobra"
 	"go.yaml.in/yaml/v3"
+	"golang.org/x/term"
 )
 
+// colorFlag is a pflag.Value for the --color flag accepting auto|always|never.
+type colorFlag string
+
+func (f *colorFlag) String() string { return string(*f) }
+func (f *colorFlag) Set(val string) error {
+	switch val {
+	case "auto", "always", "never":
+		*f = colorFlag(val)
+		return nil
+	default:
+		return fmt.Errorf("must be one of: auto, always, never")
+	}
+}
+func (f *colorFlag) Type() string { return "string" }
+
+// mtimeFlag is a pflag.Value for the --mtime flag accepting relative|absolute|hide.
+type mtimeFlag string
+
+func (f *mtimeFlag) String() string { return string(*f) }
+func (f *mtimeFlag) Set(val string) error {
+	switch val {
+	case "relative", "absolute", "hide":
+		*f = mtimeFlag(val)
+		return nil
+	default:
+		return fmt.Errorf("must be one of: relative, absolute, hide")
+	}
+}
+func (f *mtimeFlag) Type() string { return "string" }
+
 func main() {
+	var colorFlagVar colorFlag = "auto"
+	var mtimeFlagVar mtimeFlag = "relative"
+
 	rootCmd := &cobra.Command{
 		Use:   "kubectl-fields",
 		Short: "Annotate Kubernetes YAML with field ownership information",
@@ -22,7 +58,8 @@ annotated YAML to stdout.
 
 Usage:
   kubectl get deploy nginx -o yaml --show-managed-fields | kubectl-fields
-  kubectl get pods -o yaml --show-managed-fields | kubectl-fields
+  kubectl get deploy nginx -o yaml --show-managed-fields | kubectl-fields --color always
+  kubectl get deploy nginx -o yaml --show-managed-fields | kubectl-fields --mtime hide
   kubectl get deploy -o yaml --show-managed-fields | kubectl-fields --above
 
 The tool processes managedFields metadata to show who owns each field
@@ -32,6 +69,10 @@ reading raw managedFields JSON.`,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			aboveMode, _ := cmd.Flags().GetBool("above")
+
+			// Resolve color mode: auto detects TTY, always/never override.
+			colorEnabled := output.ResolveColor(string(colorFlagVar), term.IsTerminal(int(os.Stdout.Fd())))
+			colorMgr := output.NewColorManager()
 
 			docs, err := parser.ParseDocuments(os.Stdin)
 			if err != nil {
@@ -65,6 +106,7 @@ reading raw managedFields JSON.`,
 					annotate.Annotate(root, entries, annotate.Options{
 						Above: aboveMode,
 						Now:   time.Now(),
+						Mtime: annotate.MtimeMode(mtimeFlagVar),
 					})
 				}
 
@@ -76,15 +118,21 @@ reading raw managedFields JSON.`,
 				fmt.Fprintln(os.Stderr, "Warning: no managedFields found. Did you use --show-managed-fields?")
 			}
 
-			if err := parser.EncodeDocuments(os.Stdout, allDocs); err != nil {
+			// Encode YAML to buffer, then post-process (align + colorize).
+			var buf bytes.Buffer
+			if err := parser.EncodeDocuments(&buf, allDocs); err != nil {
 				return err
 			}
 
-			return nil
+			result := output.FormatOutput(buf.String(), colorEnabled, colorMgr)
+			_, err = fmt.Fprint(os.Stdout, result)
+			return err
 		},
 	}
 
 	rootCmd.Flags().Bool("above", false, "Place annotations on the line above each field instead of inline")
+	rootCmd.Flags().Var(&colorFlagVar, "color", "Color output: auto, always, never")
+	rootCmd.Flags().Var(&mtimeFlagVar, "mtime", "Timestamp display: relative, absolute, hide")
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
