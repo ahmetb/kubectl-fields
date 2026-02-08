@@ -11,8 +11,8 @@ See: .planning/PROJECT.md (updated 2026-02-07)
 
 Phase: 4 of 4 (Extended Features)
 Plan: 1 of 1 in current phase
-Status: Phase complete, verified ✓
-Last activity: 2026-02-08 -- Phase 4 verified (5/5 must-haves passed, 1/1 requirement satisfied)
+Status: Phase complete, verified ✓, UAT fixes applied
+Last activity: 2026-02-08 -- UAT 7/10 passed, 3 issues fixed (color round-robin, alignment outliers, warning color + help name)
 
 Progress: [##########] 100% (7/7 plans)
 
@@ -66,8 +66,8 @@ Recent decisions affecting current work:
 - 03-01: Two-unit time with weeks: decompose into y/mo/w/d/h/m/s, output two largest non-zero units
 - 03-01: New subresource format: "manager /sub (age)" with space+slash, no parentheses around subresource
 - 03-01: MtimeMode defaults to relative when empty string (backward compatible)
-- 03-01: 8-color bright ANSI palette with FNV-1a hash-based assignment (cross-invocation consistent)
-- 03-01: Per-block alignment: consecutive annotated lines aligned to max content width + 2-space gap
+- 03-01: 8-color bright ANSI palette with round-robin assignment (UAT fix: replaced FNV-1a hash which clustered common k8s manager names)
+- 03-01: Per-block alignment with outlier ejection: lines exceeding 40-char threshold get separate alignment groups
 - 03-01: NO_COLOR env var respected in auto mode but overridden by always
 - 03-02: pflag.Value custom types for --color and --mtime flags with validation
 - 03-02: Buffer-then-postprocess pipeline: encode to buffer, FormatOutput, write to stdout
@@ -84,10 +84,10 @@ None.
 
 - ~~Round-trip fidelity risk: go-yaml v3 may alter YAML formatting during decode/encode.~~ RESOLVED in 01-01: perfect fidelity confirmed with all test fixtures.
 - ~~go-yaml LineComment quirk: empty flow-style containers ([], {}) silently drop LineComment on key node.~~ Workaround in place (isFlowEmpty routes to value node). Now also annotates these containers correctly in golden output.
-- ~~Insertion-order color assignment: same manager could get different colors across invocations.~~ RESOLVED: switched to FNV-1a hash-based palette indexing (commit 12f23a5).
+- ~~Insertion-order color assignment: same manager could get different colors across invocations.~~ RESOLVED: switched to FNV-1a hash-based palette indexing (commit 12f23a5). Later reverted to round-robin (commit bc19a8e) after UAT showed hash clustering for common k8s manager names.
 
 ## Session Continuity
 
-Last session: 2026-02-08T03:26:53Z
-Stopped at: Completed 04-01-PLAN.md -- all phases complete (7/7 plans)
+Last session: 2026-02-08T04:00:00Z
+Stopped at: UAT complete, 3 fixes applied -- ready for milestone audit
 Resume file: None
