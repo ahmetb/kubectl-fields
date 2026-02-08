@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestColorManager_HashBased_SameManagerSameColor(t *testing.T) {
+func TestColorManager_SameManagerSameColor(t *testing.T) {
 	cm := NewColorManager()
 
 	// Same manager always returns the same color
@@ -25,35 +25,36 @@ func TestColorManager_HashBased_SameManagerSameColor(t *testing.T) {
 	assert.True(t, found, "color should be from BrightPalette")
 }
 
-func TestColorManager_HashBased_CrossInvocationConsistency(t *testing.T) {
-	// Two independent ColorManagers should assign the same color
-	// to the same manager name (hash-based, not insertion-order)
-	cm1 := NewColorManager()
-	cm2 := NewColorManager()
-
-	// Encounter managers in different order
-	cm1.ColorFor("kubectl-apply")
-	cm1.ColorFor("helm")
-	c1 := cm1.ColorFor("kube-controller-manager")
-
-	cm2.ColorFor("kube-controller-manager") // encountered first in cm2
-	c2 := cm2.ColorFor("kube-controller-manager")
-
-	assert.Equal(t, c1, c2, "same manager should get same color regardless of encounter order")
-}
-
-func TestColorManager_HashBased_DifferentManagersDifferentColors(t *testing.T) {
+func TestColorManager_RoundRobin_DistinctColors(t *testing.T) {
 	cm := NewColorManager()
 
-	// Most distinct managers should get different colors (not guaranteed
-	// since hash collisions are possible, but these common names don't collide)
+	// Each new manager gets the next color in the palette
+	names := []string{
+		"kubectl-create",
+		"kubectl-rollout",
+		"argocd-controller",
+		"kubectl-client-side-apply",
+		"kubectl-edit",
+		"kube-controller-manager",
+	}
 	colors := make(map[string]bool)
-	names := []string{"kubectl-apply", "helm", "kube-controller-manager", "argocd"}
 	for _, name := range names {
 		colors[cm.ColorFor(name)] = true
 	}
-	// With 4 names and 8 palette entries, collisions are unlikely
-	assert.GreaterOrEqual(t, len(colors), 2, "different managers should generally get different colors")
+	// With 6 names and 8 palette entries, round-robin guarantees all distinct
+	assert.Equal(t, 6, len(colors), "6 managers should get 6 distinct colors with round-robin")
+}
+
+func TestColorManager_RoundRobin_WrapsAround(t *testing.T) {
+	cm := NewColorManager()
+
+	// Exhaust the palette and verify wrap-around
+	for i := 0; i < len(BrightPalette); i++ {
+		cm.ColorFor(string(rune('A' + i)))
+	}
+	// Next manager wraps to first palette color
+	c := cm.ColorFor("overflow")
+	assert.Equal(t, BrightPalette[0], c, "should wrap around to first palette color")
 }
 
 func TestColorManager_Wrap(t *testing.T) {

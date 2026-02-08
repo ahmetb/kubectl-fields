@@ -1,7 +1,6 @@
 package output
 
 import (
-	"hash/fnv"
 	"os"
 	"strings"
 )
@@ -9,8 +8,8 @@ import (
 // ANSI escape sequence constants.
 const Reset = "\x1b[0m"
 
-// BrightPalette contains 8 bright ANSI colors for manager name colorization.
-// Colors are assigned to managers via hash-based index for cross-invocation consistency.
+// BrightPalette contains 8 visually distinct ANSI colors for manager name colorization.
+// Colors are assigned round-robin in encounter order.
 var BrightPalette = []string{
 	"\x1b[96m", // Bright Cyan
 	"\x1b[92m", // Bright Green
@@ -18,32 +17,38 @@ var BrightPalette = []string{
 	"\x1b[95m", // Bright Magenta
 	"\x1b[91m", // Bright Red
 	"\x1b[94m", // Bright Blue
-	"\x1b[36m", // Cyan (standard)
+	"\x1b[32m", // Green (standard)
 	"\x1b[33m", // Yellow (standard)
 }
 
-// ColorManager assigns ANSI colors to manager names using hash-based indexing
-// for cross-invocation consistency (same manager always gets the same color).
+// ColorManager assigns ANSI colors to manager names using round-robin order.
+// The first manager encountered gets color 0, the second gets color 1, etc.
+// The same manager always gets the same color within an invocation.
 type ColorManager struct {
-	palette []string
+	palette    []string
+	assigned   map[string]string
+	nextIndex  int
 }
 
 // NewColorManager creates a ColorManager with the default BrightPalette.
 func NewColorManager() *ColorManager {
 	return &ColorManager{
-		palette: BrightPalette,
+		palette:  BrightPalette,
+		assigned: make(map[string]string),
 	}
 }
 
 // ColorFor returns the ANSI escape code for the given manager name.
-// Uses FNV-1a hash of the manager name to deterministically pick a palette
-// index, ensuring the same manager always gets the same color regardless of
-// encounter order across invocations.
+// Assigns colors round-robin: each new manager gets the next palette color.
+// The same manager always returns the same color within an invocation.
 func (cm *ColorManager) ColorFor(managerName string) string {
-	h := fnv.New32a()
-	h.Write([]byte(managerName))
-	idx := int(h.Sum32()) % len(cm.palette)
-	return cm.palette[idx]
+	if c, ok := cm.assigned[managerName]; ok {
+		return c
+	}
+	c := cm.palette[cm.nextIndex%len(cm.palette)]
+	cm.assigned[managerName] = c
+	cm.nextIndex++
+	return c
 }
 
 // Wrap wraps text in the manager's assigned ANSI color code followed by reset.
