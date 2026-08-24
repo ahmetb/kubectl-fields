@@ -6,6 +6,7 @@ import (
 
 	"github.com/ahmetb/kubectl-fields/internal/managed"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.yaml.in/yaml/v3"
 )
 
@@ -116,7 +117,8 @@ func TestWalkFieldsV1_SimpleScalarFields(t *testing.T) {
 	replicasVal := yamlRoot.Content[1]
 	target, ok := targets[replicasVal]
 	assert.True(t, ok, "replicas value node should be in targets")
-	assert.Equal(t, "kubectl-client-side-apply", target.Info.Manager)
+	require.Len(t, target.Infos, 1)
+	assert.Equal(t, "kubectl-client-side-apply", target.Infos[0].Manager)
 	assert.Equal(t, "replicas", target.KeyNode.Value)
 	assert.Equal(t, "3", target.ValueNode.Value)
 
@@ -124,7 +126,8 @@ func TestWalkFieldsV1_SimpleScalarFields(t *testing.T) {
 	imageVal := yamlRoot.Content[3]
 	target, ok = targets[imageVal]
 	assert.True(t, ok, "image value node should be in targets")
-	assert.Equal(t, "kubectl-client-side-apply", target.Info.Manager)
+	require.Len(t, target.Infos, 1)
+	assert.Equal(t, "kubectl-client-side-apply", target.Infos[0].Manager)
 	assert.Equal(t, "image", target.KeyNode.Value)
 	assert.Equal(t, "nginx", target.ValueNode.Value)
 }
@@ -161,14 +164,16 @@ func TestWalkFieldsV1_NestedFields(t *testing.T) {
 	assert.True(t, ok, "labels mapping should have dot target")
 	assert.Equal(t, labelsKey, dotTarget.KeyNode, "dot target KeyNode should be labels key")
 	assert.Equal(t, labelsMapping, dotTarget.ValueNode, "dot target ValueNode should be labels mapping")
-	assert.Equal(t, "kubectl-edit", dotTarget.Info.Manager)
+	require.Len(t, dotTarget.Infos, 1)
+	assert.Equal(t, "kubectl-edit", dotTarget.Infos[0].Manager)
 
 	// Field target on app: KeyNode = appKey, ValueNode = appVal
 	appTarget, ok := targets[appVal]
 	assert.True(t, ok, "app value node should have target")
 	assert.Equal(t, appKey, appTarget.KeyNode)
 	assert.Equal(t, appVal, appTarget.ValueNode)
-	assert.Equal(t, "kubectl-edit", appTarget.Info.Manager)
+	require.Len(t, appTarget.Infos, 1)
+	assert.Equal(t, "kubectl-edit", appTarget.Infos[0].Manager)
 }
 
 func TestWalkFieldsV1_LeafContainerField(t *testing.T) {
@@ -199,7 +204,8 @@ func TestWalkFieldsV1_LeafContainerField(t *testing.T) {
 	assert.True(t, ok, "selector value node should be in targets as a leaf")
 	assert.Equal(t, selectorKey, target.KeyNode)
 	assert.Equal(t, selectorMapping, target.ValueNode)
-	assert.Equal(t, "kubectl-apply", target.Info.Manager)
+	require.Len(t, target.Infos, 1)
+	assert.Equal(t, "kubectl-apply", target.Infos[0].Manager)
 
 	// Should NOT have any targets for matchLabels or app (no recursion)
 	assert.Len(t, targets, 1, "only selector should be targeted, not its children")
@@ -358,7 +364,8 @@ func TestWalkFieldsV1_AssociativeKey(t *testing.T) {
 	assert.True(t, ok, "image value node should be in targets")
 	assert.Equal(t, imageKey, target.KeyNode)
 	assert.Equal(t, imageVal, target.ValueNode)
-	assert.Equal(t, "test-manager", target.Info.Manager)
+	require.Len(t, target.Infos, 1)
+	assert.Equal(t, "test-manager", target.Infos[0].Manager)
 }
 
 func TestWalkFieldsV1_AssociativeKeyDot(t *testing.T) {
@@ -387,7 +394,8 @@ func TestWalkFieldsV1_AssociativeKeyDot(t *testing.T) {
 	assert.True(t, ok, "item should have dot target")
 	assert.Nil(t, target.KeyNode, "k: dot target should have nil KeyNode")
 	assert.Equal(t, item, target.ValueNode)
-	assert.Equal(t, "test-manager", target.Info.Manager)
+	require.Len(t, target.Infos, 1)
+	assert.Equal(t, "test-manager", target.Infos[0].Manager)
 }
 
 func TestWalkFieldsV1_SetValue(t *testing.T) {
@@ -413,5 +421,6 @@ func TestWalkFieldsV1_SetValue(t *testing.T) {
 	assert.True(t, ok, "scalar should be in targets")
 	assert.Nil(t, target.KeyNode, "v: target should have nil KeyNode")
 	assert.Equal(t, fooScalar, target.ValueNode)
-	assert.Equal(t, "finalizerpatcher", target.Info.Manager)
+	require.Len(t, target.Infos, 1)
+	assert.Equal(t, "finalizerpatcher", target.Infos[0].Manager)
 }

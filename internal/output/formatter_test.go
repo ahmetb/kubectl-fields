@@ -47,6 +47,51 @@ func TestColorize_InlineComment(t *testing.T) {
 	assert.True(t, strings.HasPrefix(got, "replicas: 3"))
 }
 
+func TestColorize_CoManagedInlineComment(t *testing.T) {
+	// Co-managed field: comment has two "manager (age)" segments joined by
+	// "; " (see annotate.formatTargetComment). Each manager segment should
+	// get its own color rather than the whole comment sharing one color.
+	input := "replicas: 3  # kubectl-apply (10m ago); helm (2h ago)"
+
+	cm := NewColorManager()
+	got := Colorize(input, cm)
+
+	kubectlColor := BrightPalette[0]
+	helmColor := BrightPalette[1]
+
+	assert.Contains(t, got, kubectlColor+"# kubectl-apply (10m ago)"+Reset)
+	assert.Contains(t, got, helmColor+"helm (2h ago)"+Reset)
+	// The "; " separator between segments stays uncolored.
+	assert.Contains(t, got, Reset+"; "+helmColor)
+	assert.True(t, strings.HasPrefix(got, "replicas: 3"))
+}
+
+func TestColorize_CoManagedAboveComment(t *testing.T) {
+	input := "  # kubectl-apply (10m ago); helm (2h ago)\n  replicas: 3"
+
+	cm := NewColorManager()
+	got := Colorize(input, cm)
+
+	lines := strings.Split(got, "\n")
+	kubectlColor := BrightPalette[0]
+	helmColor := BrightPalette[1]
+
+	assert.Contains(t, lines[0], kubectlColor+"# kubectl-apply (10m ago)"+Reset)
+	assert.Contains(t, lines[0], helmColor+"helm (2h ago)"+Reset)
+	assert.Equal(t, "  replicas: 3", lines[1])
+}
+
+func TestColorize_CoManagedThreeManagers(t *testing.T) {
+	input := "replicas: 3  # a (1h ago); b (2h ago); c (3h ago)"
+
+	cm := NewColorManager()
+	got := Colorize(input, cm)
+
+	assert.Contains(t, got, BrightPalette[0]+"# a (1h ago)"+Reset)
+	assert.Contains(t, got, BrightPalette[1]+"b (2h ago)"+Reset)
+	assert.Contains(t, got, BrightPalette[2]+"c (3h ago)"+Reset)
+}
+
 func TestColorize_AboveComment(t *testing.T) {
 	input := "  # kubectl-apply (5m ago)\n  replicas: 3"
 

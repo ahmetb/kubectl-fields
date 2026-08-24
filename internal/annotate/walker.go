@@ -21,10 +21,13 @@ type AnnotationInfo struct {
 // KeyNode is the mapping key (used for above-mode comments or inline on
 // container fields). ValueNode is the mapping value (used for inline on
 // scalar fields). For dot markers the KeyNode comes from the parent level.
+// Infos holds one entry per manager that owns this node. Entries are
+// appended in the order their managedFields entries are processed, which
+// preserves the original managedFields array order.
 type AnnotationTarget struct {
 	KeyNode   *yaml.Node // key in mapping (may be nil at root level)
 	ValueNode *yaml.Node // value in mapping (the owned node)
-	Info      AnnotationInfo
+	Infos     []AnnotationInfo
 }
 
 // walkFieldsV1 descends the FieldsV1 ownership tree in parallel with the
@@ -36,7 +39,9 @@ type AnnotationTarget struct {
 //     (nil when yamlNode is the document root)
 //   - fieldsNode: the current FieldsV1 MappingNode containing ownership keys
 //   - entry: the ManagedFieldsEntry providing manager/time metadata
-//   - targets: accumulator map keyed by ValueNode pointer (last-writer-wins)
+//   - targets: accumulator map keyed by ValueNode pointer. When multiple
+//     managedFields entries claim the same node (co-managed fields), their
+//     AnnotationInfo values are appended to Infos.
 func walkFieldsV1(yamlNode *yaml.Node, parentKeyNode *yaml.Node, fieldsNode *yaml.Node, entry managed.ManagedFieldsEntry, targets map[*yaml.Node]AnnotationTarget) {
 	if fieldsNode == nil || fieldsNode.Kind != yaml.MappingNode {
 		return
@@ -54,11 +59,7 @@ func walkFieldsV1(yamlNode *yaml.Node, parentKeyNode *yaml.Node, fieldsNode *yam
 		case ".":
 			// Dot marker: the current yamlNode itself is owned.
 			// KeyNode comes from the parent level (may be nil at root).
-			targets[yamlNode] = AnnotationTarget{
-				KeyNode:   parentKeyNode,
-				ValueNode: yamlNode,
-				Info:      info,
-			}
+			addTarget(targets, yamlNode, parentKeyNode, yamlNode, info)
 
 		case "f":
 			// Field prefix: find the matching key-value pair in the YAML mapping.
@@ -69,11 +70,7 @@ func walkFieldsV1(yamlNode *yaml.Node, parentKeyNode *yaml.Node, fieldsNode *yam
 
 			if isLeaf(val) {
 				// Leaf field: store as annotation target.
-				targets[targetVal] = AnnotationTarget{
-					KeyNode:   targetKey,
-					ValueNode: targetVal,
-					Info:      info,
-				}
+				addTarget(targets, targetVal, targetKey, targetVal, info)
 			} else {
 				// Non-leaf: recurse into the child mapping.
 				walkFieldsV1(targetVal, targetKey, val, entry, targets)
@@ -92,11 +89,7 @@ func walkFieldsV1(yamlNode *yaml.Node, parentKeyNode *yaml.Node, fieldsNode *yam
 			}
 			if isLeaf(val) {
 				// Rare: k: item is a leaf itself.
-				targets[item] = AnnotationTarget{
-					KeyNode:   nil,
-					ValueNode: item,
-					Info:      info,
-				}
+				addTarget(targets, item, nil, item, info)
 			} else {
 				// Non-leaf: recurse into the item's fields.
 				// Pass nil for parentKeyNode since sequence items
@@ -112,17 +105,29 @@ func walkFieldsV1(yamlNode *yaml.Node, parentKeyNode *yaml.Node, fieldsNode *yam
 				continue
 			}
 			// v: items are always leaves.
-			targets[item] = AnnotationTarget{
-				KeyNode:   nil,
-				ValueNode: item,
-				Info:      info,
-			}
+			addTarget(targets, item, nil, item, info)
 
 		default:
 			// Unknown prefix: skip
 			continue
 		}
 	}
+}
+
+// addTarget records that a manager (described by info) owns valueNode,
+// creating the AnnotationTarget on first encounter and appending to Infos
+// on subsequent encounters. This allows co-managed fields to retain every
+// manager.
+func addTarget(targets map[*yaml.Node]AnnotationTarget, mapKey *yaml.Node, keyNode *yaml.Node, valueNode *yaml.Node, info AnnotationInfo) {
+	target, ok := targets[mapKey]
+	if !ok {
+		target = AnnotationTarget{
+			KeyNode:   keyNode,
+			ValueNode: valueNode,
+		}
+	}
+	target.Infos = append(target.Infos, info)
+	targets[mapKey] = target
 }
 
 // findMappingField locates a key-value pair in a MappingNode by field name.
