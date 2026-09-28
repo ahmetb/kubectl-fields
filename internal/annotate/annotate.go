@@ -64,7 +64,7 @@ func Annotate(root *yaml.Node, entries []managed.ManagedFieldsEntry, opts Option
 
 	// Pass 2 -- Inject comments.
 	for _, target := range targets {
-		comment := formatComment(target.Info, opts.Now, mtime, opts.ShowOperation)
+		comment := formatTargetComment(target.Infos, opts.Now, mtime, opts.ShowOperation)
 		injectComment(target, comment, opts.Above)
 	}
 }
@@ -137,6 +137,18 @@ func isFlowEmpty(node *yaml.Node) bool {
 		return false
 	}
 	return (node.Kind == yaml.MappingNode || node.Kind == yaml.SequenceNode) && len(node.Content) == 0
+}
+
+// formatTargetComment builds the annotation string for a field that may be
+// co-managed by multiple field managers. Each manager's info is formatted
+// independently via formatComment and the results are joined with "; ", so
+// the field (co-)ownership stays fully visible.
+func formatTargetComment(infos []AnnotationInfo, now time.Time, mtime MtimeMode, showOperation bool) string {
+	parts := make([]string, len(infos))
+	for i, info := range infos {
+		parts[i] = formatComment(info, now, mtime, showOperation)
+	}
+	return strings.Join(parts, "; ")
 }
 
 // formatComment builds the annotation string for a field.

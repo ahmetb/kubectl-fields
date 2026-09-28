@@ -321,6 +321,28 @@ func TestAnnotate_MultipleManagers(t *testing.T) {
 	assert.Contains(t, output, "image: nginx # helm (2h ago)")
 }
 
+func TestAnnotate_CoManagedField(t *testing.T) {
+	root := parseYAML(t, "replicas: 3\n")
+
+	entries := []managed.ManagedFieldsEntry{
+		{
+			Manager:  "kubectl-apply",
+			Time:     testNow.Add(-10 * time.Minute),
+			FieldsV1: buildFieldsV1(t, `{"f:replicas":{}}`),
+		},
+		{
+			Manager:  "helm",
+			Time:     testNow.Add(-2 * time.Hour),
+			FieldsV1: buildFieldsV1(t, `{"f:replicas":{}}`),
+		},
+	}
+
+	Annotate(root, entries, Options{Now: testNow})
+	output := encodeYAML(t, root)
+
+	assert.Contains(t, output, "replicas: 3 # kubectl-apply (10m ago); helm (2h ago)")
+}
+
 func TestAnnotate_NilFieldsV1Skipped(t *testing.T) {
 	root := parseYAML(t, "replicas: 3\n")
 
